@@ -19,7 +19,7 @@ void displayOneCell(char* dataString) {
 
   int id = dataString[0] - '0' ;
   int paramCellIDPosition = 3 ;
-  int paramARCFNPosition = 0 ;
+  int paramARFCNPosition = 0 ;
   int paramRXPosition = 1 ;
   int paramRXQPosition = 2 ; 
 
@@ -28,13 +28,13 @@ void displayOneCell(char* dataString) {
   }   
 
   String cellid = parceParam( String( dataString ), paramCellIDPosition ) ; 
-  String arcfn = parceParam( String( dataString ), paramARCFNPosition ) ; 
+  String arfcn = parceParam( String( dataString ), paramARFCNPosition ) ; 
   String rxString = parceParam( String(dataString), paramRXPosition ); 
   String rxqString = parceParam( String(dataString), paramRXQPosition ); 
   int rx = rxString.toInt()  ;
   int rxq = rxqString.toInt() ;
     
-  drawOneCell( id, cellid, arcfn, rx, rxq ) ;
+  drawOneCell( id, cellid, arfcn, rx, rxq ) ;
   lastAchivedID = id ;
 
 }
@@ -42,7 +42,7 @@ void displayOneCell(char* dataString) {
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void drawOneCell( int id, String cellid, String arcfn, int rx, int rxq ) {
+void drawOneCell( int id, String cellid, String arfcn, int rx, int rxq ) {
   int y = DISPLAY_TOP_OFFSET + id * DISPLAY_CELL_INFO_HEIGHT ;
   oled.fillRect( 0, y, 128, DISPLAY_CELL_INFO_HEIGHT, BLACK ) ;
 
@@ -54,7 +54,7 @@ void drawOneCell( int id, String cellid, String arcfn, int rx, int rxq ) {
   }
 
   oled.setCursor( 30, y ) ;
-  oled.print( arcfn ) ;
+  oled.print( arfcn ) ;
 
   drawProgressBar( 0, y + 8, 25, 5, 63, rx ) ;
   drawProgressBar( 30, y + 8, 25, 5, 60, rxq ) ;

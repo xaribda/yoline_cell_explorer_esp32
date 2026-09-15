@@ -87,9 +87,14 @@ void loopBLE() {
 
 ///////////////////////////////////////////////////////////////////////////////////////
 void sendDataToBLE( char* dataString ) {
-  if( !deviceConnected ) return ;
+  if( !deviceConnected ) { 
+    Serial.println( "BLE: no connected devices") ;
+    return ;
+  }
 
+  Serial.println() ;
   Serial.print('BLE + ') ;
+  Serial.println( dataString ) ;
 
   //pCharacteristic->setValue( dataString ) ;
   pCharacteristic->setValue( (uint8_t*) dataString, strlen( dataString )) ;

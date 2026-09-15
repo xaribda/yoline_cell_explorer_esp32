@@ -5,6 +5,12 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
+#include <FS.h> 
+#include <SPI.h>
+#include <SD.h>
+
+#include <SoftwareSerial.h>
+#include <TinyGPSPlus.h> // https://github.com/mikalhart/TinyGPSPlus
 
 #include "once.h"
 
@@ -38,6 +44,14 @@ BLEServer* pServer = nullptr ;
 BLECharacteristic* pCharacteristic = nullptr ;
 bool deviceConnected = false ;
 bool oldDeviceConnected = false ;
+
+// GPS
+#define GPS_TX_PIN 21
+#define GPS_RX_PIN 20
+#define GPS_BAUD 9600
+SoftwareSerial gpsSerial ;
+TinyGPSPlus gps ;
+//SoftwareSerial ss( GPS_TX_PIN, GPS_RX_PIN ) ;
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,6 +103,12 @@ void setup() {
 
   Serial.println("------------------ setup done -------------------") ;
   oled.clearDisplay() ; 
+
+  Serial.println("------------------ setup GPS --------------------") ;
+  initGPS() ;
+
+  Serial.println("------------------ setup CD CARD --------------------") ;
+  initSD() ;
 }
 // setup
 
@@ -104,6 +124,10 @@ void loop() {
 
   gsmAsync.doLoop() ;
   loopBLE() ;
+
+  loopGPS() ;
+
+  loopSD() ;
 }
 // loop
 
@@ -132,9 +156,10 @@ void handleCellList(char* result) {
 
 void timeoutHandler() {
   oled.setCursor(0, 0);
-  oled.print("!!! GSM timeout !!!");
+  oled.print("! GSM timeout");
   oled.display();
 
+  sendDataToBLE("! GSM timeout") ;
   Serial.println(F("GSM not responding"));
 }
 // timeoutHandler
@@ -142,9 +167,10 @@ void timeoutHandler() {
 
 void errorHandler() {
   oled.setCursor(0, 0);
-  oled.print("!!! GSM Error !!!");
+  oled.print("! GSM Error");
   oled.display();
 
+  sendDataToBLE("! GSM error") ;
   Serial.println(F("GSM Error"));
 }
 // errorHandler

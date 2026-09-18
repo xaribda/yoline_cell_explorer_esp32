@@ -26,7 +26,8 @@ Adafruit_SSD1306 oled( 128, 64, &Wire, -1 ) ;
 #define TX_PIN 4  // Сюда подключаем 3VR (RX модема)
 
 // Создаем аппаратный сериал для модема
-HardwareSerial SerialAT(1);
+//HardwareSerial SerialAT(1);
+HardwareSerial gpsHardwareSerial( 1 ) ;
 
 // Асинхронная обработка AT команд (https://github.com/prampec/GsmAsync)
 GsmAsync gsmAsync ;
@@ -46,10 +47,11 @@ bool deviceConnected = false ;
 bool oldDeviceConnected = false ;
 
 // GPS
-#define GPS_TX_PIN 21
-#define GPS_RX_PIN 20
-#define GPS_BAUD 9600
-SoftwareSerial gpsSerial ;
+#define GPS_TX_PIN 20
+#define GPS_RX_PIN 21
+#define GPS_BAUD 115200
+//SoftwareSerial gpsSerial ;
+SoftwareSerial modemSoftwareSerial ;
 TinyGPSPlus gps ;
 //SoftwareSerial ss( GPS_TX_PIN, GPS_RX_PIN ) ;
 
@@ -64,7 +66,7 @@ void setup() {
   oled.setCursor(0, 40); oled.print("YOLINE");
   oled.setCursor(0, 50); oled.print("Cell");
   oled.setCursor(0, 60); oled.print("explorer");
-  oled.setCursor(0, 70); oled.print("v 1.0");
+  oled.setCursor(0, 70); oled.print("v 1.04");
   oled.display();
 
 
@@ -75,9 +77,11 @@ void setup() {
   Serial.println("------------------ started -------------------");
 
   // Настройка порта для модема (начнем с дефолтных 9600)
-  SerialAT.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN);
+  //SerialAT.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN);
+  modemSoftwareSerial.begin( 9600, SWSERIAL_8N1, RX_PIN, TX_PIN, false );
 
-  gsmAsync.init( &SerialAT, timeoutHandler, errorHandler ) ;
+  //gsmAsync.init( &SerialAT, timeoutHandler, errorHandler ) ;
+  gsmAsync.init( &modemSoftwareSerial, timeoutHandler, errorHandler ) ;
   gsmAsync.registerHandler( &csqHandler );
   gsmAsync.registerHandler( &handler2 );
   gsmAsync.addCommand("ATE0" ) ; // Выключить эхо команд

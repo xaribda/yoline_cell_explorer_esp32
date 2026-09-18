@@ -66,7 +66,7 @@ void printDirectory( fs::File dir, int numTabs) {
     if (entry.isDirectory()) {
       Serial.println("/");
       // Если это папка, рекурсивно заходим в неё и увеличиваем отступ
-      printDirectory(entry, numTabs + 1);
+      // printDirectory(entry, numTabs + 1);
     } else {
       // Если это файл, выводим его размер в байтах
       Serial.print("\t\t");

@@ -1,15 +1,15 @@
 void doTermitalImitation() {
   // Если прилетели данные от модема — выводим на экран компьютера
-  if (SerialAT.available()) {
-    while (SerialAT.available()) {
-      Serial.write(SerialAT.read());
+  if (modemSoftwareSerial.available()) {
+    while (modemSoftwareSerial.available()) {
+      Serial.write(modemSoftwareSerial.read());
     }
   }
 
   // Если мы что-то ввели в терминале — отправляем в модем
   if (Serial.available()) {
     while (Serial.available()) {
-      SerialAT.write(Serial.read());
+      modemSoftwareSerial.write(Serial.read());
     }
   }
 

@@ -53,11 +53,11 @@ void drawOneCell( int id, String cellid, String arfcn, int rx, int rxq ) {
     oled.print( cellid ) ;
   }
 
-  oled.setCursor( 30, y ) ;
+  oled.setCursor( 34, y ) ;
   oled.print( arfcn ) ;
 
-  drawProgressBar( 0, y + 8, 25, 5, 63, rx ) ;
-  drawProgressBar( 30, y + 8, 25, 5, 60, rxq ) ;
+  drawProgressBar( 0, y + 8, 30, 5, 63, rx ) ;
+  drawProgressBar( 34, y + 8, 30, 5, 60, rxq ) ;
   oled.display() ;
 }
 // drawOneCell
@@ -126,3 +126,96 @@ void drawProgressBar( int x, int y, int width, int height, int maxValue, int val
   }
 }
 // drawProgressBar
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+void drawBluethootStatus( int x, int y ) {
+  const unsigned char bluetooth_icon[] PROGMEM = {
+    0b00011000, 
+    0b00100100, 
+    0b01000010, 
+    0b10000001, 
+    0b10011001, 
+    0b10011001, 
+    0b11111111  
+  } ;
+  oled.drawBitmap(x, y, bluetooth_icon, 8, 7, SSD1306_WHITE) ;
+}
+// drawBluethootStatus
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+void drawWriteCDStatus( int x, int y ) {
+  const unsigned char bluetooth_icon[] PROGMEM = {
+    0b00011000, 
+    0b00111100, 
+    0b01111110, 
+    0b11111111, 
+    0b01111110, 
+    0b00111100, 
+    0b00011000  
+  } ;
+  oled.drawBitmap(x, y, bluetooth_icon, 8, 7, SSD1306_WHITE) ;
+}
+// drawWriteCDStatus
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+void drawSatteliteTypeStatus( int x, int y, int type ) {
+  const unsigned char t0[] PROGMEM = {
+    0b00000000, 
+    0b00100000, 
+    0b00000000, 
+    0b00100000, 
+    0b00000000, 
+    0b00100000, 
+    0b00000000  
+  } ;
+
+  const unsigned char t1[] PROGMEM = {
+    0b01110000, 
+    0b01110000, 
+    0b01110000, 
+    0b00000000, 
+    0b00100000, 
+    0b00000000, 
+    0b00100000  
+  } ;
+
+  const unsigned char t2[] PROGMEM = {
+    0b00100000, 
+    0b00000000, 
+    0b01110000, 
+    0b01110000, 
+    0b01110000, 
+    0b00000000, 
+    0b00100000  
+  } ;
+
+  const unsigned char t3[] PROGMEM = {
+    0b00100000, 
+    0b00000000, 
+    0b00100000, 
+    0b00000000, 
+    0b01110000, 
+    0b01110000, 
+    0b01110000, 
+  } ;
+
+  if( type == 0 ) oled.drawBitmap(x, y, t0, 5, 7, SSD1306_WHITE ) ;
+  if( type == 1 ) oled.drawBitmap(x, y, t1, 5, 7, SSD1306_WHITE ) ;
+  if( type == 2 ) oled.drawBitmap(x, y, t2, 5, 7, SSD1306_WHITE ) ;
+  if( type == 3 ) oled.drawBitmap(x, y, t3, 5, 7, SSD1306_WHITE ) ;
+}
+// drawSatteliteTypeStatus
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+void drawDottedHLine(int16_t x, int16_t y, int16_t w, uint16_t color) {
+  for (int16_t i = 0; i < w; i += 2) { // Change 'i += 2' to 'i += 3' or more for larger spacing
+    oled.drawPixel(x + i, y, color);
+  }
+}
+// drawDottedHLine

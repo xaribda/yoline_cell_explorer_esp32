@@ -4,6 +4,7 @@ int GPSAccuracy = 0 ;
 int GPSFixType = 0 ;
 int GPSSatteliteCount = 0 ;
 bool weGotDataFromGPS = false ;
+String CDGPSDataString = "" ;
 
 const uint8_t enableNmea[] = {
   0xB5, 0x62, 0x06, 0x8A, 0x09, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x20, 0x40, 0xF5, 0x93
@@ -14,6 +15,12 @@ const uint8_t disableUbx[] = {
   0xB5, 0x62, 0x06, 0x8A, 0x09, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x21, 0x40, 0xF6, 0x9C
 };
 
+String getGPSString() {
+  return CDGPSDataString ;
+}
+// getGPSString
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
 void initGPS() {
   //ss.begin( GPS_BAUD ) ;
   //gpsSerial.begin( GPS_BAUD, SWSERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN, false ) ;
@@ -31,6 +38,7 @@ void initGPS() {
 }
 
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////
 void loopGPS() {
   if( once(30)) {
     loopGPS1() ;
@@ -39,8 +47,16 @@ void loopGPS() {
   if( once(10000)) {
     loopGPS2() ;
   }
-}
 
+  if( once(1000)) {
+    loopGPS3() ;
+  }
+}
+// loopGPS
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+// Читаем данные с GNSS приемника
 void loopGPS1() {
   int attempCount = 500 ;
 
@@ -60,114 +76,51 @@ void loopGPS1() {
   }
   // Serial.println() ;
   return ;
-
-  while( gpsHardwareSerial.available() > 0 ) {
-    char gpsData = gpsHardwareSerial.read(); 
-    //Serial.print("///") ;
-    //Serial.print(gpsData);
-
-    if (gps.encode( gpsData )) {
-      if (gps.location.isUpdated()) {
-        Serial.print("Latitude: ") ; 
-        Serial.println(gps.location.lat(), 6) ;
-        Serial.print("Longitude: ") ; 
-        Serial.println(gps.location.lng(), 6) ;
-      }
-
-      if( gps.satellites.isValid() ) {
-        String satString = String(gps.satellites.value()) ;
-        String strToBLE = "GPS sattelites: " + satString ;
-        sendDataToBLE( (char*) strToBLE.c_str() ) ; 
-      }
-
-      if (gps.date.isValid()) {
-        Serial.print("GPS date: ");
-        Serial.print(gps.date.month());
-        Serial.print(F("/"));
-        Serial.print(gps.date.day());
-        Serial.print(F("/"));
-        Serial.println(gps.date.year());
-      }
-      if (gps.time.isValid())
-      {
-        Serial.print("GPS time: ");
-        if (gps.time.hour() < 10) Serial.print(F("0"));
-        Serial.print(gps.time.hour());
-        Serial.print(F(":"));
-        if (gps.time.minute() < 10) Serial.print(F("0"));
-        Serial.print(gps.time.minute());
-        Serial.print(F(":"));
-        if (gps.time.second() < 10) Serial.print(F("0"));
-        Serial.print(gps.time.second());
-        Serial.print(F("."));
-        if (gps.time.centisecond() < 10) Serial.print(F("0"));
-        Serial.println(gps.time.centisecond());
-      }
-
-
-      if( gps.satellites.isUpdated() && gps.satellites.isValid()) {
-        Serial.print("GPS sattelites: ") ;
-        Serial.println( gps.satellites.value() ) ;
-      }  else {
-        sendDataToBLE("! GPS: searching sattelites...") ;
-        Serial.println("GPS: searching sattelites..." ) ;
-      }
-    }
-    //attempCount-- ;
-  }  
-
-  Serial.println() ;
-
-  if( attempCount <=0 ) {
-    Serial.println("! loopGPS: failed to get data from GPS") ;
-  }
 }
+// loopGPS1
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
+// Мониторинг всякого плохого
 void loopGPS2() {
   if( !weGotDataFromGPS == true ) {
     sendDataToBLE("! GPS not found (not connected)") ;
-    Serial.println("! No GPS detected: check wiring") ;
+    Serial.println("! GPS not found (not connected)") ;
   }
 
   if( GPSLatitude == 0.0 ) {
-    sendDataToBLE("! GPS position is not fixed") ;
-    Serial.println("! GPS position is not fixed") ;
-  }
-
-  if( GPSFixType > 0 ) {
-    char buffer[200] ;
-    snprintf( buffer, sizeof(buffer), "LL: %.7f, %.7f Sat: %d fixType: %d Acc: %d", GPSLatitude, GPSLongitude, GPSSatteliteCount, GPSFixType, GPSAccuracy ) ;
-    String xd = String( buffer ) ;
-    Serial.println( xd ) ;
-    sendDataToBLE( buffer ) ;
-    Serial.print("Lat, lng: "); Serial.print( GPSLatitude, 7 ); Serial.print( "," ) ; Serial.print( GPSLongitude, 7 ) ;
-    Serial.print(" accuracy: ") ; Serial.print( GPSAccuracy ) ;
-    Serial.print(" fix: "); Serial.print( GPSFixType);
-    Serial.print(" satellites: "); Serial.print( GPSSatteliteCount) ;
-    Serial.println() ;
-
-  }
-
-  if( GPSSatteliteCount > 0 ) {
-    Serial.print("Sattelite count: ") ;  Serial.println( GPSSatteliteCount ) ;
+    sendDataToBLE("! No GPS position") ;
+    Serial.println("! No GPS position") ;
   }
 
   weGotDataFromGPS = false ;
 
   return ;
-  if( gps.charsProcessed() < 10 ) {
-    sendDataToBLE("! GPS not found (not connected)") ;
-    Serial.println("! No GPS detected: check wiring") ;
+}
+// loopGPS2
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Сообщаем по BLE свои координаты и прочую информацию
+void loopGPS3() {
+  if( GPSFixType > 0 ) {
+    char buffer[200] ;
+    snprintf( buffer, sizeof(buffer), "$fix [%.7f,%.7f] Sat: [%d] fixType: [%d] Acc: [%d]", GPSLatitude, GPSLongitude, GPSSatteliteCount, GPSFixType, GPSAccuracy ) ;
+    CDGPSDataString = String( buffer ) ;
+    Serial.println( CDGPSDataString ) ;
+    sendGNSSToBLE( buffer ) ;
+    Serial.print("Lat, lng: "); Serial.print( GPSLatitude, 7 ); Serial.print( "," ) ; Serial.print( GPSLongitude, 7 ) ;
+    Serial.print(" accuracy: ") ; Serial.print( GPSAccuracy ) ;
+    Serial.print(" fix: "); Serial.print( GPSFixType);
+    Serial.print(" satellites: "); Serial.print( GPSSatteliteCount) ;
+    Serial.println() ;
   }
 }
+// loopGPS3
 
 
-#include <Arduino.h>
-
-// Struct mapping the u-blox M10 NAV-PVT payload layout (Little-Endian)
-// Pack structure ensures the compiler doesn't add padding bytes
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Структура пакета
 struct __attribute__((packed)) UBX_NAV_PVT_Payload {
   uint32_t iTOW;
   uint16_t year;
@@ -177,41 +130,34 @@ struct __attribute__((packed)) UBX_NAV_PVT_Payload {
   uint8_t  min;
   uint8_t  sec;
   uint8_t  valid;
-
   uint32_t tAcc;
   int32_t  nano;
-
   uint8_t  fixType;
   uint8_t  flags;
   uint8_t  flags2;
   uint8_t  numSV;
-
   int32_t  lon;
   int32_t  lat;
   int32_t  height;
   int32_t  hMSL;
-
   uint32_t hAcc;
   uint32_t vAcc;
-
   int32_t  velN;
   int32_t  velE;
   int32_t  velD;
   int32_t  gSpeed;
   int32_t  headMot;
-
   uint32_t sAcc;
   uint32_t headAcc;
-
   uint16_t pDOP;
-
   uint8_t  flags3;
   uint8_t  reserved1[5];
-
   int32_t  headVeh;
   int16_t  magDec;
   uint16_t magAcc;
-};
+} ;
+// UBX_NAV_PVT_Payload
+
 
 static_assert(sizeof(UBX_NAV_PVT_Payload) == 92, "UBX_NAV_PVT_Payload must be 92 bytes");
 
@@ -224,10 +170,14 @@ uint16_t payloadLength;
 uint16_t payloadCounter = 0;
 uint8_t calcCK_A = 0, calcCK_B = 0;
 
-// Maximum expected buffer size for standard NAV payloads
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Буфет, в 100 должно поместиться (расчетная длина 92)
 uint8_t payloadBuffer[100]; 
 
-// Process incoming byte through state machine
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Собираем по кусочкам поток из сериала и собираем пакет
 void processUBXByte(uint8_t b) {
   switch (ubxState) {
     case SYNC1:
@@ -311,8 +261,11 @@ void processUBXByte(uint8_t b) {
       break;
   }
 }
+// processUBXByte
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Говорит GNSS, что хотим UBX протокол
 void configureGPS_UBX() {
   // UBX-CFG-MSG
   //
@@ -361,9 +314,6 @@ void configureGPS_UBX() {
 
   gpsHardwareSerial.flush();
 
-  Serial.printf(
-    "GPS: UBX-NAV-PVT enabled, CK=%02X %02X\n",
-    ckA,
-    ckB
-  );
+  Serial.printf(  "GPS: UBX-NAV-PVT enabled, CK=%02X %02X\n", ckA, ckB );
 }
+// configureGPS_UBX

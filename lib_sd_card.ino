@@ -22,6 +22,19 @@ SPIClass SDSPI(FSPI);
 
 fs::File root;
 
+// После сканирования файлов вида data_nnnn.rec, maxFileNameID будет max(nnnn) 
+int maxFileNameID = 0 ;
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+bool SDRecordingMode = false ; // Записываем?
+String SDFileName = "" ;
+String ramSDBuffer = "" ;
+unsigned long lastSaveTime = 0 ;
+const size_t MAX_BUFFER_SIZE = 1024 ; // Запись при достижении 
+
+
+/////////////////////////////////////////////////////////////////////////////
 void initSD() {
   SDSPI.begin( SD_PIN_SCK, SD_PIN_MISO, SD_PIN_MOSI, SD_PIN_CS ) ;
 
@@ -29,15 +42,30 @@ void initSD() {
     Serial.println("! SD card problem, check wiring") ;
     return;
   } else {
-    Serial.println("---------- FILES ON SD ----------------------");
+    Serial.println("---------- FILES ON SD ---------------------------------------------");
     root = SD.open( "/" ) ;     
     printDirectory( root, 0 ) ;
     root.close() ; 
-    Serial.println("---------------------------------------------");
+    Serial.println("---------- END FILES -----------------------------------------------");
+    Serial.print( "Last file ID:" ) ; Serial.println( maxFileNameID ) ;
   }
+
+  generateNextFileName() ;
 }
+// initSD
 
 
+/////////////////////////////////////////////////////////////////////////////
+// Как будет называться файл
+void generateNextFileName() {
+  char buffer[5] ;
+  sprintf( buffer, "%04d", ++maxFileNameID ) ;  
+  SDFileName = String("/data_") + buffer + String(".rec") ;
+}
+// generateNextFileName
+
+
+/////////////////////////////////////////////////////////////////////////////
 void loopSD() {
   if( once(5000)) {
     if (SD.cardSize() == 0) {
@@ -45,11 +73,19 @@ void loopSD() {
     }
   }
 }
+// loopSD
 
 
+
+
+/////////////////////////////////////////////////////////////////////////////
 void printDirectory( fs::File dir, int numTabs) {
+  maxFileNameID = 0 ;
+
   while (true) {
     File entry = dir.openNextFile();
+    String fileName = entry.name() ;
+
     if (!entry) {
       // Файлов больше нет — выходим из цикла
       break;
@@ -61,17 +97,83 @@ void printDirectory( fs::File dir, int numTabs) {
     }
     
     // Выводим имя файла или папки
-    Serial.print(entry.name());
+    Serial.print( fileName );
     
     if (entry.isDirectory()) {
       Serial.println("/");
+
       // Если это папка, рекурсивно заходим в неё и увеличиваем отступ
       // printDirectory(entry, numTabs + 1);
     } else {
       // Если это файл, выводим его размер в байтах
       Serial.print("\t\t");
       Serial.println(entry.size(), DEC);
+
+      int lastSlash = fileName.lastIndexOf('/') ; // Убрать '/'
+      if( lastSlash != -1 ) {
+        fileName = fileName.substring( lastSlash + 1 ) ;
+      }
+
+      // Проверяем, подходит ли файл 
+      if( isDataFile( fileName )) {
+          // Извлекаем строку с номером (между "data_" [5 символов] и ".rec")
+          String numStr = fileName.substring( 5, fileName.length() - 4 ) ;
+          int currentNumber = numStr.toInt() ;
+
+          if( currentNumber > maxFileNameID ) {
+              maxFileNameID = currentNumber ;
+          }
+      }
     }
     entry.close(); // Обязательно закрываем файл после чтения!
+  } // while
+
+}
+// printDirectory
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Проверяет, подходит ли имя файла под маску "data_XXXX.rec" 
+bool isDataFile( String fileName ) {
+  return ( fileName.startsWith("data_") && fileName.endsWith(".rec")) ; 
+}
+// isDataFile
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////
+void toSDBuffer( String data ) {
+  if( CDGPSDataString.length() == 0 ) return ;
+
+  ramSDBuffer+= data ;
+  if( ramSDBuffer.length() >= MAX_BUFFER_SIZE ) {
+    saveBufferToSD() ;
   }
 }
+// toSDBuffer
+
+
+/////////////////////////////////////////////////////////////////////////////
+void saveBufferToSD() {
+  if( ramSDBuffer.length() == 0 ) return ;
+  drawWriteCDStatus( 33, 0 ) ;
+  oled.display() ;
+
+  File file = SD.open( SDFileName, FILE_APPEND ) ;
+  if( file ) {
+    file.print( ramSDBuffer ) ;
+    file.close() ;
+    ramSDBuffer = "" ; 
+    Serial.print("\\\\ Data saved to SD file: ") ;
+    Serial.println( SDFileName ) ;
+    lastSaveTime = millis() ;
+  } else {
+    Serial.println("\\\\ SD write error!") ;
+  }
+
+  oled.fillRect( 33, 0, 8, 8, BLACK ) ;
+  oled.display() ;
+}
+// saveBufferToSD
+

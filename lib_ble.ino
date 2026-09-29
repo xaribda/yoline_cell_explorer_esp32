@@ -1,19 +1,30 @@
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+// ESP32C3 dev module
+// CPU 160Mhz
+#define SERVICE_UUID               "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_COMMON_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a1"
+#define CHARACTERISTIC_GNSS_UUID   "beb5483e-36e1-4688-b7f5-ea07361b26a2"
+
+// BLE каналы и т.п.
+BLEServer* pServer = nullptr ;
+BLECharacteristic* pCommonCharacteristic = nullptr ;
+BLECharacteristic* pGNSSCharacteristic = nullptr ;
+bool deviceConnected = false ;
+bool oldDeviceConnected = false ;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer* pServer) {
     deviceConnected = true;
-    oled.setCursor( 40, 0 ) ;
-    oled.print( "BLE" ) ;
+    // oled.setCursor( 40, 0 ) ;
+    // oled.print( "BLE" ) ;
+    drawBluethootStatus( 32,0 ) ;
     Serial.println("--- connected --- ");
   }
 
   void onDisconnect(BLEServer* pServer) {
     deviceConnected = false;
-    oled.fillRect( 40, 0, 20, 10, BLACK ) ;
+    oled.fillRect( 32, 0, 8, 8, BLACK ) ;
     Serial.println("--- disconnected --- ");
   }
 } ;
@@ -33,16 +44,15 @@ void initBLE() {
   BLEService *pService = pServer->createService( SERVICE_UUID ) ;
 
   // Создание характеристики (чтение + уведомления)
-  pCharacteristic = pService->createCharacteristic(
-                      CHARACTERISTIC_UUID,
-                      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
-                    );
+  pCommonCharacteristic = pService->createCharacteristic( CHARACTERISTIC_COMMON_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY ) ;
+  pGNSSCharacteristic = pService->createCharacteristic( CHARACTERISTIC_GNSS_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY ) ;
 
   // Дескриптор для уведомлений
-  pCharacteristic->addDescriptor( new BLE2902()) ;
+  pCommonCharacteristic->addDescriptor( new BLE2902()) ;
+  pGNSSCharacteristic->addDescriptor( new BLE2902()) ;
 
   // Стартовое значение
-  pCharacteristic->setValue("ESP32 is ready to communicate") ;
+  pCommonCharacteristic->setValue("YOLINE Cell Explorer is ready to communicate") ;
 
   // Запуск сервиса
   pService->start();
@@ -63,8 +73,8 @@ void loopBLE() {
   // if( once(2000) && deviceConnected) {
   //   // Пример: отправляем счётчик
   //   String data = "Value: hi hi" ;
-  //   pCharacteristic->setValue(data.c_str());
-  //   pCharacteristic->notify();       
+  //   pCommonCharacteristic->setValue(data.c_str());
+  //   pCommonCharacteristic->notify();       
 
   //   Serial.println("Отправлено: " + data);
   // }  
@@ -92,12 +102,22 @@ void sendDataToBLE( char* dataString ) {
     return ;
   }
 
-  Serial.println() ;
-  Serial.print('BLE + ') ;
-  Serial.println( dataString ) ;
+  // Serial.println() ;
+  // Serial.print('BLE + ') ;
+  // Serial.println( dataString ) ;
 
-  //pCharacteristic->setValue( dataString ) ;
-  pCharacteristic->setValue( (uint8_t*) dataString, strlen( dataString )) ;
-  pCharacteristic->notify();       
+  //pCommonCharacteristic->setValue( dataString ) ;
+  pCommonCharacteristic->setValue( (uint8_t*) dataString, strlen( dataString )) ;
+  pCommonCharacteristic->notify();       
+}
+// sendDataToBLE
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+void sendGNSSToBLE( char* dataString ) {
+  if( !deviceConnected ) return ;
+
+  pGNSSCharacteristic->setValue( (uint8_t*) dataString, strlen( dataString )) ;
+  pGNSSCharacteristic->notify();       
 }
 // sendDataToBLE

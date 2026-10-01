@@ -8,6 +8,8 @@
 #include <FS.h> 
 #include <SPI.h>
 #include <SD.h>
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
 
 #include <SoftwareSerial.h>
 #include <TinyGPSPlus.h> // https://github.com/mikalhart/TinyGPSPlus

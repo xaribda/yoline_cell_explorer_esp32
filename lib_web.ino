@@ -1,38 +1,149 @@
+#include "esp_wifi.h"
+#include "esp_bt.h"
+#include <DNSServer.h>
 
 AsyncWebServer server(80) ;
+DNSServer dnsServer ;
+const byte DNS_PORT = 53 ;
 
 String webPassword ;
 bool webServerRunning = false ;
 bool softAPRunning = false;
 
 const char* WEB_USERNAME = "admin" ;
-const char* SOFTAP_SSID  = "YOLINE FR Fly Scanner";
+const char* SOFTAP_SSID  = "YOLINE";
 
 String generatePassword( uint8_t ) ;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 void initWEB() {
-
+  //esp_bt_controller_disable(); 
+  //esp_wifi_set_max_tx_power( WIFI_POWER_8_5dBm ) ;
+  //delay(100) ;
+  WiFi.mode( WIFI_AP ) ;
+  delay(100) ;
 }
 // initWEB  
 
 
+void loopWEB() {
+  if (softAPRunning) {
+    dnsServer.processNextRequest();   // ← очень важно!
+  }  
+}
+// loopWEB
+
+
+String startWebServer() {
+  if (webServerRunning) {
+    return webPassword;
+  }
+
+  webPassword = generatePassword(4);
+
+  // --- SoftAP + Captive Portal ---
+    WiFi.mode( WIFI_STA ) ;
+    delay( 500 ) ; 
+    WiFi.mode( WIFI_AP ) ;
+    
+    //bool ok = WiFi.softAP(SOFTAP_SSID, webPassword.c_str());
+    bool ok = WiFi.softAP(SOFTAP_SSID, NULL, 11 );
+    
+    if (ok) {
+      softAPRunning = true;
+      
+      // DNS: все домены → IP ESP32 (это и есть основа captive portal)
+      dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+      dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+      
+      Serial.println("SoftAP + Captive Portal started");
+      Serial.printf("  SSID:     %s\n", SOFTAP_SSID);
+      Serial.printf("  Password: %s\n", webPassword.c_str());
+      Serial.print  ("  IP:       ");
+      Serial.println(WiFi.softAPIP());
+    } else {
+      Serial.println("Failed to start SoftAP");
+    }
+
+  // --- Основные страницы ---
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    //if (!checkAuth(request)) return;
+    request->send(200, "text/html", webPageFiles() );
+  });
+
+  server.on("/download", HTTP_GET, [](AsyncWebServerRequest *request) {
+    //if (!checkAuth(request)) return;
+
+    if (!request->hasParam("file")) {
+      request->send(400, "text/plain", "Missing file parameter");
+      return;
+    }
+
+    String filepath = request->getParam("file")->value();
+    
+    if (filepath.indexOf("..") >= 0) {
+      request->send(403, "text/plain", "Forbidden");
+      return;
+    }
+
+    if (!SD.exists(filepath)) {
+      request->send(404, "text/plain", "File not found");
+      return;
+    }
+
+    request->send(SD, filepath, "application/octet-stream", true);
+  });
+
+  // --- Captive Portal: перенаправляем всё на главную ---
+  // Android
+  server.on("/generate_204", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->redirect("/");
+  });
+  
+  // Apple
+  server.on("/hotspot-detect.html", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->redirect("/");
+  });
+  
+  // Windows
+  server.on("/ncsi.txt", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->redirect("/");
+  });
+  
+  server.on("/connecttest.txt", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->redirect("/");
+  });
+
+  // Всё остальное тоже на главную
+  server.onNotFound([](AsyncWebServerRequest *request) {
+    request->redirect("/");
+  });
+
+  server.begin();
+  webServerRunning = true;
+
+  Serial.printf("Web server started. Password: %s\n", webPassword.c_str());
+  return webPassword;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // Запуск веб-сервера
-String startWebServer() {
+String startWebServer2() {
   if (webServerRunning) {
     return webPassword;   // уже запущен — возвращаем текущий пароль
   }
-  webPassword = generatePassword(4);
+  webPassword = generatePassword(8);
 
-  if( WiFi.status() == WL_CONNECTED ) {
-    WiFi.mode( WIFI_AP_STA ) ;
-  } else {
-    WiFi.mode( WIFI_AP ) ;
-  }  
+  //Serial.print("WiFi status: ") ; Serial.println( WiFi.status() ) ;
+  // Прогрев!!
+  WiFi.mode( WIFI_STA ) ;
+  delay( 500 ) ; 
+  WiFi.mode( WIFI_AP ) ;
   
   // Пароль SoftAP = тот же 4-символьный пароль
-  bool ok = WiFi.softAP(SOFTAP_SSID, webPassword.c_str());  
+  //bool ok = WiFi.softAP(SOFTAP_SSID, webPassword.c_str(), 11 ) ;  
+  bool ok = WiFi.softAP(SOFTAP_SSID, NULL, 11 ) ;  
+
   if( ok ){
     softAPRunning = true;
     Serial.println("SoftAP started");
@@ -132,7 +243,7 @@ String webPageHTMLFileList() {
   String html = "" ;
   
   File root = SD.open("/") ;
-  if (!root || !root.isDirectory()) {
+  if( !root || !root.isDirectory() ) {
     html += "<tr><td colspan='3' class='empty'>SD card is not ready</td></tr>" ;
   } else {
     bool hasFiles = false ;
@@ -148,15 +259,17 @@ String webPageHTMLFileList() {
         html += "<tr>";
         html += "<td>" + name + "</td>";
         html += "<td class='size'>" + formatBytes(file.size()) + "</td>";
-        html += "<td><a href=\"/download?file=/" + name + "\">Скачать</a></td>";
+        html += "<td><a href=\"/download?file=/" + name + "\">download</a></td>";
         html += "</tr>";
       }
+      file.close() ;
       file = root.openNextFile() ;
-    }
+    } // while
+
     root.close() ;
     
     if (!hasFiles) {
-      html += "<tr><td colspan='3' class='empty'>Файлов нет</td></tr>" ;
+      html += "<tr><td colspan='3' class='empty'>No files on SD card</td></tr>" ;
     }
   }
 

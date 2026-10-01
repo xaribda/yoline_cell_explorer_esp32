@@ -12,9 +12,11 @@
 #include <ESPAsyncWebServer.h>
 
 #include <SoftwareSerial.h>
-#include <TinyGPSPlus.h> // https://github.com/mikalhart/TinyGPSPlus
+//#include <TinyGPSPlus.h> // https://github.com/mikalhart/TinyGPSPlus
 
 #include "once.h"
+
+
 
 
 Adafruit_SSD1306 oled( 128, 64, &Wire, -1 ) ;
@@ -50,7 +52,7 @@ GsmHandler batteryHandler = { "+CBC:", handleBattery };
 #define GPS_BAUD 115200
 //SoftwareSerial gpsSerial ;
 SoftwareSerial modemSoftwareSerial ;
-TinyGPSPlus gps ;
+//TinyGPSPlus gps ;
 //SoftwareSerial ss( GPS_TX_PIN, GPS_RX_PIN ) ;
 
 uint64_t chipMacAddress ;
@@ -125,6 +127,13 @@ void setup() {
   initSD() ;
 
   drawStatusPlacement() ;
+
+  Serial.println("------------------ setup WEB srerver ------------------------------") ;
+  initWEB() ;
+
+  String password = startWebServer() ;
+  Serial.println( "WEB server started with password: ") ;
+  Serial.println( password ) ;
 }
 // setup
 
@@ -150,6 +159,8 @@ void loop() {
   loopBattery() ;
 
   loopStatusBar() ;
+
+  loopWEB() ;
 }
 // loop
 

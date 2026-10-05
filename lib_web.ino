@@ -11,17 +11,24 @@ bool webServerRunning = false ;
 bool softAPRunning = false;
 
 const char* WEB_USERNAME = "admin" ;
-const char* SOFTAP_SSID  = "YOLINE";
 
+// Объявляем предварительно
 String generatePassword( uint8_t ) ;
+String fileYMDHM( File ) ;
+bool isWebServerRunning() ;
+String webPageHTMLStart() ;
+String webPageHTMLEnd() ;
+String formatBytes(size_t) ;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 void initWEB() {
   //esp_bt_controller_disable(); 
   //esp_wifi_set_max_tx_power( WIFI_POWER_8_5dBm ) ;
   //delay(100) ;
-  WiFi.mode( WIFI_AP ) ;
-  delay(100) ;
+  // Выключаем, экономим энергию
+  //WiFi.mode( WIFI_OFF ) ; 
+  //WiFi.mode( WIFI_STA ) ;
+
 }
 // initWEB  
 
@@ -34,7 +41,7 @@ void loopWEB() {
 // loopWEB
 
 
-String startWebServer() {
+String startWebServer( int channel ) {
   if (webServerRunning) {
     return webPassword;
   }
@@ -42,32 +49,57 @@ String startWebServer() {
   webPassword = generatePassword(4);
 
   // --- SoftAP + Captive Portal ---
-    WiFi.mode( WIFI_STA ) ;
-    delay( 500 ) ; 
-    WiFi.mode( WIFI_AP ) ;
+  WiFi.disconnect(true, true); 
+  delay( 200 ) ; 
+  WiFi.mode( WIFI_STA ) ;
+  delay( 200 ) ; 
+  WiFi.mode( WIFI_AP ) ;
+  delay( 200 ) ; 
+  //WiFi.setTxPower( WIFI_POWER_19_5dBm ) ; // Максимум!!!
+  WiFi.setTxPower( WIFI_POWER_8_5dBm ) ; 
+  delay( 200 ) ; 
+
+  
+  // Для Android Captive Portal
+  IPAddress apIP(192, 168, 4, 1);
+  IPAddress gateway(192, 168, 4, 1);
+  IPAddress subnet(255, 255, 255, 0);
+  WiFi.softAPConfig( apIP, gateway, subnet);
+
+  bool ok = WiFi.softAP( getDeviceName().c_str(), NULL, channel ) ;
+
+
+  if (ok) {
+    softAPRunning = true;
     
-    //bool ok = WiFi.softAP(SOFTAP_SSID, webPassword.c_str());
-    bool ok = WiFi.softAP(SOFTAP_SSID, NULL, 11 );
+    // DNS: все домены → IP ESP32 (это и есть основа captive portal)
+    dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+    dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
     
-    if (ok) {
-      softAPRunning = true;
-      
-      // DNS: все домены → IP ESP32 (это и есть основа captive portal)
-      dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-      dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-      
-      Serial.println("SoftAP + Captive Portal started");
-      Serial.printf("  SSID:     %s\n", SOFTAP_SSID);
-      Serial.printf("  Password: %s\n", webPassword.c_str());
-      Serial.print  ("  IP:       ");
-      Serial.println(WiFi.softAPIP());
-    } else {
-      Serial.println("Failed to start SoftAP");
-    }
+    Serial.println("SoftAP + Captive Portal started") ;
+    Serial.printf("  SSID:     %s\n", getDeviceName().c_str() ) ;
+    Serial.printf("  Password: %s\n", webPassword.c_str()) ;
+    Serial.print  ("  IP:       ");
+    Serial.println(WiFi.softAPIP());
+  } else {
+    Serial.println("Failed to start SoftAP");
+  }
 
   // --- Основные страницы ---
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     //if (!checkAuth(request)) return;
+    request->send(200, "text/html", webPageMain() );
+  });
+
+  server.on("/bypass", HTTP_GET, [](AsyncWebServerRequest *request) {
+    dnsServer.stop() ;
+    Serial.println("----- handleBypass" ) ;
+
+    // 2. Отправляем заголовок редиректа на нужную страницу
+    request->redirect("http://192.168.4.1/files");
+  }) ;
+
+  server.on("/files", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(200, "text/html", webPageFiles() );
   });
 
@@ -97,7 +129,12 @@ String startWebServer() {
   // --- Captive Portal: перенаправляем всё на главную ---
   // Android
   server.on("/generate_204", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->redirect("/");
+    // НЕ возвращаем 204! Иначе Android решит, что интернет есть
+    request->redirect("http://192.168.4.1/");
+  });
+
+  server.on("/gen_204", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->redirect("http://192.168.4.1/");
   });
   
   // Apple
@@ -126,105 +163,57 @@ String startWebServer() {
   return webPassword;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////
-// Запуск веб-сервера
-String startWebServer2() {
-  if (webServerRunning) {
-    return webPassword;   // уже запущен — возвращаем текущий пароль
-  }
-  webPassword = generatePassword(8);
 
-  //Serial.print("WiFi status: ") ; Serial.println( WiFi.status() ) ;
-  // Прогрев!!
-  WiFi.mode( WIFI_STA ) ;
-  delay( 500 ) ; 
-  WiFi.mode( WIFI_AP ) ;
-  
-  // Пароль SoftAP = тот же 4-символьный пароль
-  //bool ok = WiFi.softAP(SOFTAP_SSID, webPassword.c_str(), 11 ) ;  
-  bool ok = WiFi.softAP(SOFTAP_SSID, NULL, 11 ) ;  
+////////////////////////////////////////////////////////////////////////////////////////////////
+void stopSPI() {
+  SPI.end(); // Полностью останавливаем аппаратный SPI
 
-  if( ok ){
-    softAPRunning = true;
-    Serial.println("SoftAP started");
-    Serial.printf("  SSID: %s\n", SOFTAP_SSID);
-    Serial.printf("  Password: %s\n", webPassword.c_str());
-    Serial.print("  IP: ");
-    Serial.println(WiFi.softAPIP());
-  } else {
-    Serial.println("Failed to start SoftAP");
-  }
-
-  // Главная страница — список файлов
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!checkAuth(request)) return;
-    request->send(200, "text/html", webPageFiles());
-  });
-
-  // Скачивание файла
-  server.on("/download", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (!checkAuth(request)) return;
-
-    if (!request->hasParam("file")) {
-      request->send(400, "text/plain", "Missing file parameter");
-      return;
-    }
-
-    String filepath = request->getParam("file")->value();
-    
-    // Защита от path traversal
-    if (filepath.indexOf("..") >= 0) {
-      request->send(403, "text/plain", "Forbidden");
-      return;
-    }
-
-    if (!SD.exists(filepath)) {
-      request->send(404, "text/plain", "File not found");
-      return;
-    }
-
-    // Отдаём файл с правильным именем
-    request->send(SD, filepath, "application/octet-stream", true);
-  });
-
-  // 404
-  server.onNotFound([](AsyncWebServerRequest *request) {
-    request->send(404, "text/plain", "404. Page not found");
-  });
-
-  server.begin();
-  webServerRunning = true;
-
-  Serial.printf("Web server started. Password: %s\n", webPassword.c_str());
-  return webPassword;
+  // Переводим пины картридера в режим INPUT, чтобы они не фонили
+  pinMode(SD_PIN_SCK, INPUT);
+  pinMode(SD_PIN_MISO, INPUT);
+  pinMode(SD_PIN_MOSI, INPUT);
+  pinMode(SD_PIN_CS, INPUT);  
 }
-// startWebServer
+// stopSPI()
 
 
 // ====================== Остановка веб-сервера ======================
 void stopWebServer() {
-  if (!webServerRunning) return;
-
-  server.end();
-  webServerRunning = false;
+  if( !webServerRunning ) return ;
+  server.end() ;
   
   if( softAPRunning ){
     WiFi.softAPdisconnect( true ) ;
-    softAPRunning = false ;
     Serial.println("SoftAP stopped") ;
   }
+  
+  // Выключаем, экономим энергию
+  WiFi.disconnect( true, true ) ; 
+  WiFi.mode( WIFI_OFF ) ; 
+  Serial.println("WiFi stopped") ;
 
   webPassword = "" ;
-  
+  webServerRunning = false;
+  softAPRunning = false ;
+
   Serial.println("Web server stopped") ;
 }
 // stopWebServer
 
 
-String webPageFiles() {
-  return webPageHTMLStart() + webPageHTMLFileList() + webPageHTMLEnd() ; 
+String webPageMain() {
+  Serial.println("----- webPageMain" ) ;
+  return webPageHTMLStart() + webPageHTMLFileList( true ) + webPageHTMLEnd() ; 
 }
-// webPageFiles
+// webPageMain
+
+
+String webPageFiles() {
+  Serial.println("----- webPageFiles" ) ;
+
+  return webPageHTMLStart() + webPageHTMLFileList( false ) + webPageHTMLEnd() ; 
+}
+// webPageMain
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -239,8 +228,16 @@ bool checkAuth( AsyncWebServerRequest *request ) {
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
-String webPageHTMLFileList() {
-  String html = "" ;
+String webPageHTMLFileList( bool isCaptive ) {
+  String html = R"rawliteral(
+    <table>
+      <thead>
+        <tr>
+          <th>File</th><th>Size</th><th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+  )rawliteral" ; 
   
   File root = SD.open("/") ;
   if( !root || !root.isDirectory() ) {
@@ -250,16 +247,26 @@ String webPageHTMLFileList() {
     File file = root.openNextFile() ;
     
     while (file) {
-      if (!file.isDirectory()) {
+      if (!file.isDirectory() ) {
         hasFiles = true;
         String name = String(file.name());
+        if( name[0] == '.' ) { 
+          file.close() ;
+          file = root.openNextFile() ;
+          continue ;
+        }
+
         // Убираем ведущий слэш, если есть
         if (name.startsWith("/")) name = name.substring(1);
         
         html += "<tr>";
-        html += "<td>" + name + "</td>";
+        if( isCaptive ) {
+          html += "<td>" + name + "</td>";
+        } else {
+          html += "<td><a href=\"/download?file=/" + name + "\" download=\"" + name + "\">" + name + "</a></td>";
+        }
         html += "<td class='size'>" + formatBytes(file.size()) + "</td>";
-        html += "<td><a href=\"/download?file=/" + name + "\">download</a></td>";
+        html += "<td>" + fileYMDHM( file ) + "</td>" ;
         html += "</tr>";
       }
       file.close() ;
@@ -273,6 +280,10 @@ String webPageHTMLFileList() {
     }
   }
 
+  html += "</tbody></table>" ;
+  if( isCaptive ) {
+    html += "<div style=\"text-align:center;padding:20px;\"><a href='http://192.168.4.1/files'>Enter the system</a></div>" ;
+  }
   return html ;
 }
 // webPageHTMLFileList
@@ -292,8 +303,8 @@ String webPageHTMLStart() {
               h1 { color: #333; }
               .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
               table { width: 100%; border-collapse: collapse; }
-              th { background: #1a73e8; color: white; padding: 12px 15px; text-align: left; }
-              td { padding: 10px 15px; border-bottom: 1px solid #eee; }
+              table th { background: #1a73e8; color: white; padding: 12px 15px; text-align: left; font-size:12px; }
+              table td { padding: 10px 15px; border-bottom: 1px solid #eee; font-size:12px; }
               tr:hover { background: #f8f9fa; }
               a { color: #1a73e8; text-decoration: none; font-weight: 500; }
               a:hover { text-decoration: underline; }
@@ -302,17 +313,8 @@ String webPageHTMLStart() {
             </style>
           </head>
           <body>
-            <h1>Please select file to upload</h1>
+            <h3>)rawliteral" + getDeviceName() + R"rawliteral(</h3>
             <div class="card">
-              <table>
-                <thead>
-                  <tr>
-                    <th>File</th>
-                    <th>Size</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
           )rawliteral" ;  
 }
 // webPageHTMLStart
@@ -320,13 +322,7 @@ String webPageHTMLStart() {
 
 ///////////////////////////////////////////////////////////////////////////////////////
 String webPageHTMLEnd() {
-  return R"rawliteral(
-      </tbody>
-    </table>
-  </div>
-</body>
-</html>
-)rawliteral"; ;
+  return "</div></body></html>" ;
 }
 // webPageHTMLEnd
 
@@ -350,3 +346,19 @@ String formatBytes(size_t bytes) {
   else return String(bytes / 1024.0 / 1024.0, 2) + " MB";
 }
 // formatBytes
+
+bool isWebServerRunning() {
+  return webServerRunning ;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+String fileYMDHM( File file ) {
+  time_t lastWriteTime = file.getLastWrite() ;
+  struct tm *timeinfo = localtime( &lastWriteTime ) ;
+  char formattedDateTime[20];
+  strftime( formattedDateTime, sizeof(formattedDateTime), "%d.%m.%Y %H:%M", timeinfo ) ;
+ 
+
+  return String( formattedDateTime ) ;
+}
+// fileYMDHM

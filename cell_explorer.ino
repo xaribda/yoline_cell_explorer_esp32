@@ -57,6 +57,9 @@ SoftwareSerial modemSoftwareSerial ;
 
 uint64_t chipMacAddress ;
 char chipMacAddressBuffer[13]; // 12 + символ конца строки '\0'
+String formattedChiMacAddress = "" ;
+String globalDeviceName = "" ;
+String globalDeviceVersion = "1.80" ;
 
 
 
@@ -70,17 +73,22 @@ void setup() {
   chipMacAddress = ESP.getEfuseMac() ;
   snprintf( chipMacAddressBuffer, sizeof(chipMacAddressBuffer), "%04X%08X", (uint16_t)( chipMacAddress >> 32), (uint32_t) chipMacAddress ) ;
   Serial.print("Serial number: ") ;
-  Serial.println( chipMacAddressBuffer ) ;
+  char formattedMacChar[18] ; 
+  sprintf( formattedMacChar, "%.2s-%.2s-%.2s-%.2s-%.2s-%.2s", &chipMacAddressBuffer[0], &chipMacAddressBuffer[2], &chipMacAddressBuffer[4], &chipMacAddressBuffer[6], &chipMacAddressBuffer[8], &chipMacAddressBuffer[10]) ;
+  formattedChiMacAddress = String(formattedMacChar)   ;
+  globalDeviceName = "YOLINE RF " + formattedChiMacAddress ;
 
-  oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  oled.setTextSize(1);
+  Serial.println( formattedChiMacAddress ) ;
+
+  oled.begin( SSD1306_SWITCHCAPVCC, 0x3C) ;
+  oled.setTextSize( 1 ) ;
   oled.setTextColor( WHITE, BLACK ) ; 
   oled.setRotation(1) ;
   oled.clearDisplay() ;
   oled.setCursor(0, 30); oled.print( "YOLINE");
   oled.setCursor(0, 40); oled.print( "RF Fly");
   oled.setCursor(0, 50); oled.print( "Scanner");                                      
-  oled.setCursor(0, 60); oled.print( "v 1.47");
+  oled.setCursor(0, 60); oled.print( "v "); oled.print( getDeviceVersion() ) ;
   //oled.drawLine( 0, 80, 34, 80, WHITE ) ;
   drawDottedHLine( 0, 80, 34, WHITE ) ;
   oled.setCursor(0, 85); oled.write( (uint8_t*) chipMacAddressBuffer, 6 ) ; 
@@ -128,12 +136,9 @@ void setup() {
 
   drawStatusPlacement() ;
 
-  Serial.println("------------------ setup WEB srerver ------------------------------") ;
-  initWEB() ;
-
-  String password = startWebServer() ;
-  Serial.println( "WEB server started with password: ") ;
-  Serial.println( password ) ;
+  Serial.println("------------------ setup WEB server --------------------------------") ;
+  initWEB() ;  
+  //startWebServer(13) ;
 }
 // setup
 
@@ -214,9 +219,17 @@ void errorHandler() {
 }
 // errorHandler
 
+String getDeviceName() {
+  return globalDeviceName ;
+}
+
+String getSerialFormatted() {
+  return formattedChiMacAddress ;
+}
 
 
-
-
+String getDeviceVersion() {
+  return globalDeviceVersion ;
+}
 
 

@@ -1,4 +1,4 @@
-// Пин на карт-ридереВаша плата 
+// Пин на карт-ридере == плата 
 // CLK (SCK)  GPIO 10 Тактовый сигнал
 // MISO       GPIO 5 Вход данных
 // MOSI       GPIO 6 Выход данных
@@ -13,8 +13,14 @@
 // GRND
 
 
+bool isSDCardRecording = false ;
+
 SPIClass SDSPI(FSPI); 
 
+// #define SD_PIN_SCK  10
+// #define SD_PIN_MISO 5
+// #define SD_PIN_MOSI 6
+// #define SD_PIN_CS   7
 #define SD_PIN_SCK  10
 #define SD_PIN_MISO 5
 #define SD_PIN_MOSI 6
@@ -36,9 +42,11 @@ const size_t MAX_BUFFER_SIZE = 1024 ; // Запись при достижени�
 
 /////////////////////////////////////////////////////////////////////////////
 void initSD() {
+  pinMode( SD_PIN_CS, OUTPUT ) ;
+  digitalWrite( SD_PIN_CS, HIGH ) ;
   SDSPI.begin( SD_PIN_SCK, SD_PIN_MISO, SD_PIN_MOSI, SD_PIN_CS ) ;
-
-  if( !SD.begin( SD_PIN_CS, SDSPI )) {
+  
+  if( !SD.begin( SD_PIN_CS, SDSPI, 1000000 )) {
     Serial.println("! SD card problem, check wiring") ;
     return;
   } else {
@@ -145,6 +153,7 @@ bool isDataFile( String fileName ) {
 /////////////////////////////////////////////////////////////////////////////
 void toSDBuffer( String data ) {
   if( CDGPSDataString.length() == 0 ) return ;
+  if( !isRecording() ) return ;
 
   ramSDBuffer+= data ;
   if( ramSDBuffer.length() >= MAX_BUFFER_SIZE ) {
@@ -157,7 +166,7 @@ void toSDBuffer( String data ) {
 /////////////////////////////////////////////////////////////////////////////
 void saveBufferToSD() {
   if( ramSDBuffer.length() == 0 ) return ;
-  drawWriteCDStatus( 33, 0 ) ;
+  drawWriteCDStatus( 30, 0 ) ;
   oled.display() ;
 
   File file = SD.open( SDFileName, FILE_APPEND ) ;
@@ -172,8 +181,28 @@ void saveBufferToSD() {
     Serial.println("\\\\ SD write error!") ;
   }
 
-  oled.fillRect( 33, 0, 8, 8, BLACK ) ;
+  oled.fillRect( 30, 0, 8, 8, BLACK ) ;
   oled.display() ;
 }
 // saveBufferToSD
 
+
+bool isRecording() {
+  return isSDCardRecording ;
+}
+
+String startRecord() {
+  if( SD.cardSize() == 0 ) {
+    return "No SD card" ;
+  }
+
+  isSDCardRecording = true ;
+
+  return "Recording is started" ;
+}
+// startRecord
+
+
+String stopRecord() {
+  isSDCardRecording = false ;
+}

@@ -11,7 +11,7 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
 //#include <TinyGPSPlus.h> // https://github.com/mikalhart/TinyGPSPlus
 
 #include "once.h"
@@ -51,7 +51,7 @@ GsmHandler batteryHandler = { "+CBC:", handleBattery };
 #define GPS_RX_PIN 21
 #define GPS_BAUD 115200
 //SoftwareSerial gpsSerial ;
-SoftwareSerial modemSoftwareSerial ;
+//SoftwareSerial modemSoftwareSerial ;
 //TinyGPSPlus gps ;
 //SoftwareSerial ss( GPS_TX_PIN, GPS_RX_PIN ) ;
 
@@ -96,28 +96,8 @@ void setup() {
 
   oled.display();
 
-
-  // Настройка порта для модема (начнем с дефолтных 9600)
-  //SerialAT.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN);
-  modemSoftwareSerial.begin( 9600, SWSERIAL_8N1, RX_PIN, TX_PIN, false );
-
-  //gsmAsync.init( &SerialAT, timeoutHandler, errorHandler ) ;
-  gsmAsync.init( &modemSoftwareSerial, timeoutHandler, errorHandler ) ;
-  gsmAsync.registerHandler( &csqHandler );
-  gsmAsync.registerHandler( &handler2 );
-  gsmAsync.registerHandler( &batteryHandler );
-  gsmAsync.addCommand("ATE0" ) ; // Выключить эхо команд
-  gsmAsync.addCommand("AT+CSQ") ; // Уровень сигнала
-  delay( 1000 ) ; 
-
-  // Serial.println("-- speed up to 115200--") ;
-  // gsmAsync.addCommand("AT+IPR=19300" ) ; // Поднимаем скорость
-  // delay(100); 
-  // SerialAT.end(); // Закрываем соединение на 9600
-  // delay(100); 
-  // SerialAT.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN); // Открываем на 115200
-  // delay(500);
-  // Serial.println("-- speed completed--") ;
+  Serial.println("------------------ setup GSM ---------------------------------------") ;
+  initAT() ;
 
   gsmAsync.addCommand("AT+CENG=1,1") ; // Инженерный режим с выдачей cellid
   gsmAsync.addCommand("AT+CENG?") ; // Список сот
@@ -169,6 +149,8 @@ void loop() {
     Serial.printf("--- Max Alloc Block: %d bytes\n", ESP.getMaxAllocHeap());
     Serial.printf("--- Min Free Heap Ever: %d bytes\n", ESP.getMinFreeHeap());    
   }
+
+  delay(1) ;
 }
 // loop
 

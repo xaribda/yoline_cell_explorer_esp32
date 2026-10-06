@@ -10,7 +10,6 @@ int lastAchivedID = 0 ;
 // 0,"0975,27,99,250,02,52,ff3f,00,05,9d2c,255"
 // 1,"0073,18,27,7f70,250,02,e7"
 void displayOneCell(char* dataString) {
-  Serial.println( "displayOneCell 1" ) ;
   if( dataString[1] == ',' && dataString[2] == '1' ) {
     //oled.clearDisplay() ;
     // Чистим оставшуюся часть экрана
@@ -27,8 +26,6 @@ void displayOneCell(char* dataString) {
   if( dataString[0] == '0' && dataString[1] == ',' ) {
     paramCellIDPosition = 6 ;
   }   
-
-  Serial.println( "displayOneCell 2 " ) ;
 
   String cellid = parceParam( String( dataString ), paramCellIDPosition ) ; 
   String arfcn = parceParam( String( dataString ), paramARFCNPosition ) ; 

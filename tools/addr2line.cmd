@@ -1,0 +1,1 @@
+/Users/z0me/Library/Arduino15/packages/esp32/tools//riscv32-esp-elf-gcc/esp-2021r2-patch5-8.4.0/bin/riscv32-esp-elf-addr2line -e cell_explorer.ino.elf 0x4038d456

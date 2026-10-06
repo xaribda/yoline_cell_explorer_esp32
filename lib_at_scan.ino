@@ -3,6 +3,32 @@ bool isSendCellListToBLE = false ;
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+void initAT() {
+  // Настройка порта для модема (начнем с дефолтных 9600, потом поднимаем)
+  //SerialAT.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN);
+  //modemSoftwareSerial.begin( 9600, SWSERIAL_8N1, RX_PIN, TX_PIN, false );
+  Serial0.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN ) ;
+  Serial0.println( "AT+IPR=115200" ) ; 
+  delay( 200 ) ;
+  Serial0.end() ; 
+  delay( 100 ) ;
+  Serial0.begin( 115200, SERIAL_8N1, RX_PIN, TX_PIN ) ; 
+
+  //gsmAsync.init( &SerialAT, timeoutHandler, errorHandler ) ;
+  // gsmAsync.init( &modemSoftwareSerial, timeoutHandler, errorHandler ) ;
+  gsmAsync.init( &Serial0, timeoutHandler, errorHandler ) ;
+  gsmAsync.registerHandler( &csqHandler );
+  gsmAsync.registerHandler( &handler2 );
+  gsmAsync.registerHandler( &batteryHandler );
+  gsmAsync.addCommand("ATE0" ) ; // Выключить эхо команд
+  gsmAsync.addCommand("AT+CSQ") ; // Уровень сигнала
+  delay( 1000 ) ; 
+
+}
+// initAT
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 void requestCellList() {
     // Serial.println("-request AT+CENG?") ; 
     gsmAsync.addCommand("AT+CENG?") ;
@@ -23,9 +49,6 @@ void handleCsq(char* result) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void handleCellList(char* result) {
-  Serial.print("handleCellList: ");   
-  Serial.println( result ) ;
-
   if( isSendCellListToBLE ) { 
     sendDataToBLE( result ) ;
     Serial.println( result ) ;

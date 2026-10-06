@@ -1,7 +1,7 @@
 void loopBattery() {
   if( once( 6200 )) {
     gsmAsync.addCommand("AT+CBC") ;
-    Serial.println("-request AT+CBC") ; 
+    Serial.println(F("-request AT+CBC")) ; 
   }
 }
 // loopBattery
@@ -15,10 +15,10 @@ int voltageMV = -1; // Напряжение в милливольтах (нап�
 void handleBattery(char* result) {
 
     int parsed = sscanf( result, "%d,%d,%d", &chgStatus, &batteryPercent, &voltageMV ) ;
-      Serial.print( "BATTERY, status" ) ; Serial.print( chgStatus ) ;
-      Serial.print( " percent" ) ; Serial.print( batteryPercent ) ;
-      Serial.print( " voltage" ) ; Serial.print( voltageMV ) ;
-      Serial.println() ;
+      // Serial.print( "BATTERY, status" ) ; Serial.print( chgStatus ) ;
+      // Serial.print( " percent" ) ; Serial.print( batteryPercent ) ;
+      // Serial.print( " voltage" ) ; Serial.print( voltageMV ) ;
+      // Serial.println() ;
 
     if (parsed == 3) {
     } else {

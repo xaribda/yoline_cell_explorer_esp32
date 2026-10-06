@@ -60,9 +60,9 @@ void initGPS() {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 void loopGPS() {
-  if( once(30)) {
+  //if( once(30)) {
     loopGPS1() ;
-  }
+  //}
 
   if( once(10000)) {
     loopGPS2() ;
@@ -82,7 +82,7 @@ void loopGPS() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 // Читаем данные с GNSS приемника
 void loopGPS1() {
-  int attempCount = 500 ;
+  int attempCount = 100 ;
 
   while (gpsHardwareSerial.available() > 0 && attempCount > 0 ) {
     weGotDataFromGPS = true ;
@@ -96,7 +96,7 @@ void loopGPS1() {
     // Передаем этот байт в наш парсер (стейт-машину)
     processUBXByte(incomingByte);
     attempCount-- ;
-    
+    yield() ;
   }
   // Serial.println() ;
   return ;

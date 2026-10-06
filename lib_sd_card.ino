@@ -47,15 +47,17 @@ void initSD() {
   SDSPI.begin( SD_PIN_SCK, SD_PIN_MISO, SD_PIN_MOSI, SD_PIN_CS ) ;
   
   if( !SD.begin( SD_PIN_CS, SDSPI, 1000000 )) {
-    Serial.println("! SD card problem, check wiring") ;
+    Serial.println(F("! SD card problem, check wiring")) ;
     return;
   } else {
-    Serial.println("---------- FILES ON SD ---------------------------------------------");
-    root = SD.open( "/" ) ;     
-    printDirectory( root, 0 ) ;
-    root.close() ; 
-    Serial.println("---------- END FILES -----------------------------------------------");
-    Serial.print( "Last file ID:" ) ; Serial.println( maxFileNameID ) ;
+    // Serial.println("---------- FILES ON SD ---------------------------------------------");
+    // root = SD.open( "/" ) ;     
+    // printDirectory( root, 0 ) ;
+    // root.close() ; 
+    // Serial.println("---------- END FILES -----------------------------------------------");
+    // Serial.print( "Last file ID:" ) ; Serial.println( maxFileNameID ) ;
+    Serial.print(F("Card size: ")) ; 
+    Serial.println( SD.cardSize() ) ;
   }
 }
 // initSD
@@ -163,14 +165,14 @@ void toSDBuffer( String data ) {
 
 /////////////////////////////////////////////////////////////////////////////
 void clearRecordingStatus() {
-  oled.fillRect( 20, 0, 8, 8, BLACK ) ;
+  oled.fillRect( 21, 0, 8, 8, BLACK ) ;
   oled.display() ;
 }
 // clearRecordingStatus
 
 /////////////////////////////////////////////////////////////////////////////
 void drawRecordingStatus() {
-  drawWriteCDStatus( 20, 0 ) ;
+  drawWriteCDStatus( 21, 0 ) ;
   oled.display() ;
 }
 // clearRecordingStatus
@@ -194,7 +196,7 @@ void saveBufferToSD() {
     Serial.println("\\\\ SD write error!") ;
   }
 
-  drawRecordCDStatus( 20, 0 ) ;
+  drawRecordCDStatus( 21, 0 ) ;
   oled.display() ;
 }
 // saveBufferToSD

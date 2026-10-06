@@ -4,7 +4,7 @@ bool isWebServerRunning() ;
 // 
 String executeCommand( String command ) {
 
-  if( command.startsWith("start web" )) {
+  if( command.startsWith( "start web" )) {
     int channel = 1 ;
     String channelStr = command.substring(9) ;
     if( channelStr.length() > 0 ) {
@@ -16,56 +16,56 @@ String executeCommand( String command ) {
     return "WEB started, channel: " + channelStr + ", password: " + password ;
   }
 
-  if( command == "stop web" ) {
+  if( command == F("stop web") ) {
     stopWebServer() ;
     return "WEB stopped" ;
   }
 
-  if( command == "state web" ) {
+  if( command == F("state web") ) {
     return isWebServerRunning() ? "WEB is running" : "WEB is stopped" ;
   }
 
-  if( command == "get serial" ) {
+  if( command == F("get serial") ) {
     return getSerialFormatted() ;
   }
 
-  if( command == "get name" ) {
+  if( command == F("get name")) {
     return getDeviceName() ;
   }
 
-  if( command == "get version" ) {
+  if( command == F("get version") ) {
     return getDeviceVersion() ;
   }
 
-  if( command == "start record" ) {
+  if( command == F("start record") ) {
     if( isRecording() ) return "Already recording" ;
     if( isWebServerRunning() ) stopWebServer() ;
 
     return startRecord() ;
   }
 
-  if( command == "stop record" ) {
+  if( command == F("stop record") ) {
     return stopRecord() ;
   }
 
-  if( command == "state record" ) {
+  if( command == F("state record") ) {
     return isRecording() ? "Recording" : "Not recording" ;
   }
 
-  if( command == "get date" ) {
+  if( command == F("get date") ) {
     return GNSSDateTimeString() ;
   }
 
-  if( command == "get gnss" || command == "get gps" ) {
+  if( command == F("get gnss") || command == F("get gps") ) {
     return getGNSSData() ;
   }
 
-  if( command == "get battery" ) {
+  if( command == F("get battery") ) {
     return getBattery() ;
   }
 
 
-  if( command == "reboot" ) {
+  if( command == F("reboot") ) {
     if( isRecording() ) stopRecord() ;
     if( isWebServerRunning()) stopWebServer() ;
     sendDataToBLE("Rebooting now...") ;

@@ -23,6 +23,9 @@ void handleCsq(char* result) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void handleCellList(char* result) {
+  Serial.print("handleCellList: ");   
+  Serial.println( result ) ;
+
   if( isSendCellListToBLE ) { 
     sendDataToBLE( result ) ;
     Serial.println( result ) ;

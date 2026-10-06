@@ -1,6 +1,7 @@
 bool isWebServerRunning() ;
 
-
+// TODO сделать state uptime, state memory, 
+// 
 String executeCommand( String command ) {
 
   if( command.startsWith("start web" )) {
@@ -43,7 +44,7 @@ String executeCommand( String command ) {
     return startRecord() ;
   }
 
-  if( command == "stop record" || command == "sr" ) {
+  if( command == "stop record" ) {
     return stopRecord() ;
   }
 
@@ -67,8 +68,10 @@ String executeCommand( String command ) {
   if( command == "reboot" ) {
     if( isRecording() ) stopRecord() ;
     if( isWebServerRunning()) stopWebServer() ;
+    sendDataToBLE("Rebooting now...") ;
+    delay(200) ;
     ESP.restart() ;
-    return "rebooting" ;
+    return "" ;
   }
 
 

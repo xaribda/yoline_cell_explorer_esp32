@@ -135,7 +135,7 @@ void sendDataToBLE( const char* dataString ) {
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
-void sendGNSSToBLE( char* dataString ) {
+void sendGNSSToBLE( const char* dataString ) {
   if( !deviceConnected ) return ;
 
   pGNSSCharacteristic->setValue( (uint8_t*) dataString, strlen( dataString )) ;

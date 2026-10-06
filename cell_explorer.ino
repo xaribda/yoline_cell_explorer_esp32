@@ -148,10 +148,7 @@ void loop() {
   //doTermitalImitation() ;
 
   if( once(2000) ) {
-    Serial.println("-request AT+CENG?") ; 
-    gsmAsync.addCommand("AT+CENG?") ;
-    // Сначала пишем GPS координаты, функция не работает, если нет фикса
-    toSDBuffer( getGPSString() ) ;
+    requestCellList() ;
   }
 
   gsmAsync.doLoop() ;
@@ -174,62 +171,5 @@ void loop() {
 
 
 
-
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-void handleCsq(char* result) {
-  int rssi;
-  sscanf(result, "%d", &rssi);
-  Serial.print("Signal quality:");
-  Serial.println(rssi);
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-void handleCellList(char* result) {
-  sendDataToBLE( result ) ;
-  toSDBuffer( result ) ;
-  displayOneCell( result ) ;
-  Serial.println( result ) ;
-}
-// handleCellList
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-void timeoutHandler() {
-  oled.setCursor(0, 20);
-  oled.print("GSM err 01");
-  oled.display();
-
-  sendDataToBLE("! GSM timeout") ;
-  Serial.println(F("GSM not responding"));
-}
-// timeoutHandler
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-void errorHandler() {
-  oled.setCursor(0, 40);
-  oled.print("GSM err 02");
-  oled.display();
-
-  sendDataToBLE("! GSM error") ;
-  Serial.println(F("GSM Error"));
-}
-// errorHandler
-
-String getDeviceName() {
-  return globalDeviceName ;
-}
-
-String getSerialFormatted() {
-  return formattedChiMacAddress ;
-}
-
-
-String getDeviceVersion() {
-  return globalDeviceVersion ;
-}
 
 

@@ -282,7 +282,7 @@ String webPageHTMLFileList( bool isCaptive ) {
 
   html += "</tbody></table>" ;
   if( isCaptive ) {
-    html += "<div style=\"text-align:center;padding:20px;\"><a href='http://192.168.4.1/files'>Enter the system</a></div>" ;
+    html += "<div style=\"text-align:center;padding:20px;\"><a href='http://192.168.4.1/bypass'>Enter the system</a></div>" ;
   }
   return html ;
 }

@@ -149,16 +149,33 @@ void drawBluethootStatus( int x, int y ) {
 void drawWriteCDStatus( int x, int y ) {
   const unsigned char bluetooth_icon[] PROGMEM = {
     0b00011000, 
-    0b00111100, 
     0b01111110, 
     0b11111111, 
+    0b11111111, 
+    0b11111110, 
     0b01111110, 
-    0b00111100, 
     0b00011000  
   } ;
-  oled.drawBitmap(x, y, bluetooth_icon, 8, 7, SSD1306_WHITE) ;
+  oled.drawBitmap(x, y, bluetooth_icon, 8, 7, SSD1306_WHITE, SSD1306_BLACK ) ;
 }
 // drawWriteCDStatus
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+void drawRecordCDStatus( int x, int y ) {
+  const unsigned char icon[] PROGMEM = {
+    0b00011000, 
+    0b01000010, 
+    0b10000001, 
+    0b10000001, 
+    0b10000001, 
+    0b01000010, 
+    0b00011000  
+  } ;
+  oled.drawBitmap(x, y, icon, 8, 7, SSD1306_WHITE, SSD1306_BLACK ) ;
+}
+// drawRecordCDStatus
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -57,18 +57,16 @@ void initSD() {
     Serial.println("---------- END FILES -----------------------------------------------");
     Serial.print( "Last file ID:" ) ; Serial.println( maxFileNameID ) ;
   }
-
-  generateNextFileName() ;
 }
 // initSD
 
 
 /////////////////////////////////////////////////////////////////////////////
-// Как будет называться файл
-void generateNextFileName() {
-  char buffer[5] ;
-  sprintf( buffer, "%04d", ++maxFileNameID ) ;  
-  SDFileName = String("/data_") + buffer + String(".rec") ;
+// Как будет называться файл data_12345.rec
+String generateNextFileName( int id ) {
+  char buffer[6] ;
+  sprintf( buffer, "%05d", id ) ;  
+  return String("/data_") + buffer + String(".rec") ;
 }
 // generateNextFileName
 
@@ -164,9 +162,24 @@ void toSDBuffer( String data ) {
 
 
 /////////////////////////////////////////////////////////////////////////////
+void clearRecordingStatus() {
+  oled.fillRect( 20, 0, 8, 8, BLACK ) ;
+  oled.display() ;
+}
+// clearRecordingStatus
+
+/////////////////////////////////////////////////////////////////////////////
+void drawRecordingStatus() {
+  drawWriteCDStatus( 20, 0 ) ;
+  oled.display() ;
+}
+// clearRecordingStatus
+
+
+/////////////////////////////////////////////////////////////////////////////
 void saveBufferToSD() {
   if( ramSDBuffer.length() == 0 ) return ;
-  drawWriteCDStatus( 30, 0 ) ;
+  drawRecordingStatus() ;
   oled.display() ;
 
   File file = SD.open( SDFileName, FILE_APPEND ) ;
@@ -181,28 +194,97 @@ void saveBufferToSD() {
     Serial.println("\\\\ SD write error!") ;
   }
 
-  oled.fillRect( 30, 0, 8, 8, BLACK ) ;
+  drawRecordCDStatus( 20, 0 ) ;
   oled.display() ;
 }
 // saveBufferToSD
 
 
+/////////////////////////////////////////////////////////////////////////////////
 bool isRecording() {
   return isSDCardRecording ;
 }
+// isRecording
 
+
+/////////////////////////////////////////////////////////////////////////////////
+String getNewFileName() {
+  maxFileNameID = 0 ;
+  root = SD.open( "/" ) ;     
+
+  while( true ) {
+    File entry = root.openNextFile() ;
+    String fileName = entry.name() ;
+    if( !entry ) break ;
+         
+    if( !entry.isDirectory()) {
+      int lastSlash = fileName.lastIndexOf('/') ; // Убрать '/'
+      if( lastSlash != -1 ) fileName = fileName.substring( lastSlash + 1 ) ;
+
+      // Проверяем, подходит ли файл 
+      if( isDataFile( fileName )) {
+          // Извлекаем строку с номером (между "data_" [5 символов] и ".rec")
+          String numStr = fileName.substring( 5, fileName.length() - 4 ) ;
+          int currentNumber = numStr.toInt() ;
+
+          if( currentNumber > maxFileNameID ) maxFileNameID = currentNumber ;
+      }
+    }
+    entry.close(); // Обязательно закрываем файл после чтения!
+  } // while
+  
+  root.close() ; 
+  maxFileNameID++ ;
+
+  return generateNextFileName( maxFileNameID ) ;
+
+}
+// getNewFileName
+
+
+/////////////////////////////////////////////////////////////////////////////////
+// Начинаем запись на карту
 String startRecord() {
   if( SD.cardSize() == 0 ) {
     return "No SD card" ;
   }
 
+  if( getGNSSFixType() == 0 ) {
+    return "No GNSS Fix" ;
+  }
+
+  if( !isGPS() ) {
+    return "No GPS data (no connection)" ;
+  }
+
+  // Имя файла исходя из существующих data_12345.rec файлов +1
+  SDFileName = getNewFileName() ;
+  Serial.print( "Recording new file: ") ; Serial.print( SDFileName ) ;
   isSDCardRecording = true ;
 
-  return "Recording is started" ;
+  // Создаем файл и пишем заголовок
+  File file = SD.open( SDFileName, FILE_APPEND ) ;
+
+  String header = "<header>\n" ;
+  header+= "device: " + getDeviceName() + "\n" ;
+  header+= "version: " + getDeviceVersion() + "\n" ; 
+  header+= "serial: " + getSerialFormatted() + "\n" ;
+  header+= "start: " + GNSSDateTimeString() + "\n" ;
+  header+= "</header>\n" ;
+  
+  file.print( header ) ;
+  file.close() ;
+  
+  drawRecordingStatus() ;
+  
+  return "Recording is started, file: " + SDFileName ;
 }
 // startRecord
 
 
 String stopRecord() {
   isSDCardRecording = false ;
+  clearRecordingStatus() ; 
+  return "Record stopped" ;
 }
+

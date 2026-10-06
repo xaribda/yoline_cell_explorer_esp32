@@ -37,16 +37,32 @@ String executeCommand( String command ) {
   }
 
   if( command == "start record" ) {
+    if( isRecording() ) return "Already recording" ;
+    if( isWebServerRunning() ) stopWebServer() ;
+
     return startRecord() ;
   }
 
-  if( command == "stop record" ) {
+  if( command == "stop record" || command == "sr" ) {
     return stopRecord() ;
   }
 
   if( command == "state record" ) {
-    return isRecording() ? "recording" : "not recording" ;
+    return isRecording() ? "Recording" : "Not recording" ;
   }
+
+  if( command == "get date" ) {
+    return GNSSDateTimeString() ;
+  }
+
+  if( command == "get gnss" || command == "get gps" ) {
+    return getGNSSData() ;
+  }
+
+  if( command == "get battery" ) {
+    return getBattery() ;
+  }
+
 
   if( command == "reboot" ) {
     if( isRecording() ) stopRecord() ;
@@ -56,5 +72,5 @@ String executeCommand( String command ) {
   }
 
 
-  return "command not found" ;
+  return "command [" + command + "] not found" ;
 }

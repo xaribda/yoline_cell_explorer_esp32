@@ -30,3 +30,11 @@ void handleBattery(char* result) {
 
 }
 // handleBattery
+
+
+String getBattery() {
+  char buffer[200] ;
+  snprintf( buffer, sizeof(buffer), "Status: %d percent: %d voltage: %d", chgStatus, batteryPercent, voltageMV ) ;
+
+  return String( buffer ) ;
+}

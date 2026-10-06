@@ -22,7 +22,7 @@ void drawStatusPlacement() {
 
 /////////////////////////////////////////////////////////////////////////////////////
 void gnssStatus() {
-  oled.fillRect( 0, 0, 30, 10, BLACK ) ;
+  oled.fillRect( 0, 0, 20, 10, BLACK ) ;
   oled.setCursor( 0, 0 ) ;
 
   oled.setCursor( 0, 0 ) ;

@@ -1,3 +1,6 @@
+#include <sys/time.h>
+#include <time.h>
+
 double GPSLatitude = 0.0 ;
 double GPSLongitude = 0.0 ;
 int GPSAccuracy = 0 ;
@@ -5,6 +8,14 @@ int GPSFixType = 0 ;
 int GPSSatteliteCount = 0 ;
 bool weGotDataFromGPS = false ;
 String CDGPSDataString = "" ;
+
+uint16_t GNSSYear = 0 ;
+uint8_t  GNSSMonth = 0 ;
+uint8_t  GNSSDay = 0 ;
+uint8_t  GNSSHour = 0 ;
+uint8_t  GNSSSMin = 0 ;
+uint8_t  GNSSSSec = 0 ;
+
 
 const uint8_t enableNmea[] = {
   0xB5, 0x62, 0x06, 0x8A, 0x09, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x20, 0x40, 0xF5, 0x93
@@ -15,10 +26,19 @@ const uint8_t disableUbx[] = {
   0xB5, 0x62, 0x06, 0x8A, 0x09, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x21, 0x40, 0xF6, 0x9C
 };
 
-String getGPSString() {
-  return CDGPSDataString ;
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+String getGNSSDataAndDateTimeString() {
+  return getGNSSData() + "/" + GNSSDateTimeString() ;
 }
-// getGPSString
+// getGNSSDataAndDateTimeString
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+int getGNSSFixType() {
+  return GPSFixType ;
+}
+// getGNSSFixType
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 void initGPS() {
@@ -50,6 +70,10 @@ void loopGPS() {
 
   if( once(1000)) {
     loopGPS3() ;
+  }
+
+  if( once(5000)) {
+    syncTime() ;
   }
 }
 // loopGPS
@@ -104,19 +128,37 @@ void loopGPS2() {
 // Сообщаем по BLE свои координаты и прочую информацию
 void loopGPS3() {
   if( GPSFixType > 0 ) {
-    char buffer[200] ;
-    snprintf( buffer, sizeof(buffer), "$fix [%.7f,%.7f] Sat: [%d] fixType: [%d] Acc: [%d]", GPSLatitude, GPSLongitude, GPSSatteliteCount, GPSFixType, GPSAccuracy ) ;
-    CDGPSDataString = String( buffer ) ;
+    CDGPSDataString = getGNSSData() ;
     Serial.println( CDGPSDataString ) ;
-    sendGNSSToBLE( buffer ) ;
-    Serial.print("Lat, lng: "); Serial.print( GPSLatitude, 7 ); Serial.print( "," ) ; Serial.print( GPSLongitude, 7 ) ;
-    Serial.print(" accuracy: ") ; Serial.print( GPSAccuracy ) ;
-    Serial.print(" fix: "); Serial.print( GPSFixType);
-    Serial.print(" satellites: "); Serial.print( GPSSatteliteCount) ;
-    Serial.println() ;
+    sendGNSSToBLE( CDGPSDataString.c_str() ) ;
+    // Serial.print("Lat, lng: "); Serial.print( GPSLatitude, 7 ); Serial.print( "," ) ; Serial.print( GPSLongitude, 7 ) ;
+    // Serial.print(" accuracy: ") ; Serial.print( GPSAccuracy ) ;
+    // Serial.print(" fix: "); Serial.print( GPSFixType);
+    // Serial.print(" satellites: "); Serial.print( GPSSatteliteCount) ;
+    // Serial.println() ;
   }
 }
 // loopGPS3
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+String getGNSSData() {
+  char buffer[200] ;
+  snprintf( buffer, sizeof(buffer), "$fix [%.7f,%.7f] Sat: [%d] fixType: [%d] Acc: [%d]", GPSLatitude, GPSLongitude, GPSSatteliteCount, GPSFixType, GPSAccuracy ) ;
+  return String( buffer ) ;
+}
+// getGNSSData
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+String GNSSDateTimeString() {
+  if( GNSSYear == 0 ) return "xx.xx.xxxx xx:xx:xx" ;
+
+  char buffer[20] ;
+  snprintf( buffer, sizeof(buffer), "%02d.%02d.%04d %02d:%02d:%02d", GNSSDay, GNSSMonth, GNSSYear, GNSSHour, GNSSSMin, GNSSSSec ) ;
+  return String( buffer ) ;
+}
+// GNSSDateTimeString
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -249,6 +291,13 @@ void processUBXByte(uint8_t b) {
           GPSAccuracy = pvt->hAcc ;
           GPSFixType = pvt->fixType ;
           GPSSatteliteCount = pvt->numSV ;
+
+          GNSSYear = pvt->year ;
+          GNSSMonth = pvt->month ;
+          GNSSDay = pvt->day ;
+          GNSSHour = pvt->hour ;
+          GNSSSMin = pvt->min ;
+          GNSSSSec = pvt->sec ;
           
           // Serial.print("Lat, lng: "); Serial.print( GPSLatitude, 10 ); Serial.print( "," ) ; Serial.print( GPSLongitude, 10 ) ;
           // Serial.print(" accuracy: ") ; Serial.print( pvt->hAcc ) ;
@@ -317,3 +366,54 @@ void configureGPS_UBX() {
   Serial.printf(  "GPS: UBX-NAV-PVT enabled, CK=%02X %02X\n", ckA, ckB );
 }
 // configureGPS_UBX
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void syncTime() {
+  if( GNSSYear > 0 ) { 
+    syncSystemTimeWithGPS( GNSSYear, GNSSMonth, GNSSDay, GNSSHour, GNSSSMin, GNSSSSec ) ;
+  }
+}
+// syncTime
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void syncSystemTimeWithGPS(int year, int month, int day, int hour, int minute, int second) {
+    struct tm t;
+    
+    t.tm_year = year - 1900;  // Год с 1900
+    t.tm_mon = month - 1;     // Месяцы с 0
+    t.tm_mday = day;
+    t.tm_hour = hour;
+    t.tm_min = minute;
+    t.tm_sec = second;
+    t.tm_isdst = 0;           // Для UTC летнее время всегда 0
+
+    // Безопасная альтернатива timegm для ESP32:
+    // Временно устанавливаем таймзону в UTC для корректной работы mktime
+    char *old_tz = getenv("TZ");
+    setenv("TZ", "UTC0", 1);
+    tzset();
+
+    time_t epochTime = mktime(&t); 
+
+    // Возвращаем старую таймзону обратно, если она была настроена
+    if (old_tz) {
+        setenv("TZ", old_tz, 1);
+    } else {
+        unsetenv("TZ");
+    }
+    tzset();
+
+    // Записываем время в системные часы ESP32
+    struct timeval tv;
+    tv.tv_sec = epochTime;
+    tv.tv_usec = 0;
+
+    if (settimeofday(&tv, NULL) == 0) {
+        //Serial.println("Системное время ESP32 успешно синхронизировано!");
+    } else {
+        Serial.println("Ошибка установки времени!");
+    }
+}
+// syncSystemTimeWithGPS

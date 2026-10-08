@@ -284,9 +284,22 @@ String startRecord() {
 // startRecord
 
 
+/////////////////////////////////////////////////////////////////////////////////
 String stopRecord() {
+  // Сбросили буфер, если есть
+  saveBufferToSD() ;
+
+  // Записали хвостик, если есть хвостик, значит запись была остановлена, а не прервана
+  String end = "\n<end>\n" ;
+  end+= "end: " + GNSSDateTimeString() + "\n" ;
+  end+= "</end>\n" ;
+  File file = SD.open( SDFileName, FILE_APPEND ) ;
+  file.print( end ) ;
+  file.close() ;
+
   isSDCardRecording = false ;
   clearRecordingStatus() ; 
+  SDFileName = "" ;
   return "Record stopped" ;
 }
 

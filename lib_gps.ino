@@ -29,7 +29,7 @@ const uint8_t disableUbx[] = {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 String getGNSSDataAndDateTimeString() {
-  return getGNSSData() + "/" + GNSSDateTimeString() ;
+  return getGNSSData() + " " + GNSSDateTimeFormattedString() ;
 }
 // getGNSSDataAndDateTimeString
 
@@ -143,12 +143,22 @@ void loopGPS3() {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 String getGNSSData() {
-  char buffer[200] ;
+  char buffer[130] ;
   snprintf( buffer, sizeof(buffer), "$fix [%.7f,%.7f] Sat: [%d] fixType: [%d] Acc: [%d]", GPSLatitude, GPSLongitude, GPSSatteliteCount, GPSFixType, GPSAccuracy ) ;
   return String( buffer ) ;
 }
 // getGNSSData
 
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+String GNSSDateTimeFormattedString() {
+  if( GNSSYear == 0 ) return "date: [xx.xx.xxxx] time:[xx:xx:xx]" ;
+
+  char buffer[100] ;
+  snprintf( buffer, sizeof(buffer), "date: [%02d.%02d.%04d] time: [%02d:%02d:%02d]", GNSSDay, GNSSMonth, GNSSYear, GNSSHour, GNSSSMin, GNSSSSec ) ;
+  return String( buffer ) ;
+}
+// GNSSDateTimeString
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 String GNSSDateTimeString() {
@@ -280,30 +290,9 @@ void processUBXByte(uint8_t b) {
       
     case CHK_B:
       if (b == calcCK_B) {
-        // Serial.println("++++++++") ;
-        // SUCCESSFULLY DECODED A VALID PACKET
         if (msgClass == 0x01 && msgId == 0x07) { 
-          // Cast the raw buffer into our structured layout
-          UBX_NAV_PVT_Payload* pvt = (UBX_NAV_PVT_Payload*)payloadBuffer;
-          
-          GPSLatitude = pvt->lat / 10000000.0 ;
-          GPSLongitude = pvt->lon / 10000000.0 ;
-          GPSAccuracy = pvt->hAcc ;
-          GPSFixType = pvt->fixType ;
-          GPSSatteliteCount = pvt->numSV ;
-
-          GNSSYear = pvt->year ;
-          GNSSMonth = pvt->month ;
-          GNSSDay = pvt->day ;
-          GNSSHour = pvt->hour ;
-          GNSSSMin = pvt->min ;
-          GNSSSSec = pvt->sec ;
-          
-          // Serial.print("Lat, lng: "); Serial.print( GPSLatitude, 10 ); Serial.print( "," ) ; Serial.print( GPSLongitude, 10 ) ;
-          // Serial.print(" accuracy: ") ; Serial.print( pvt->hAcc ) ;
-          // Serial.print(" fix: "); Serial.print( pvt->fixType );
-          // Serial.print(" satellites: "); Serial.print( pvt->numSV ) ;
-          // Serial.println() ;
+          UBX_NAV_PVT_Payload* pvt = (UBX_NAV_PVT_Payload*)payloadBuffer ;          
+          setGNSSData( pvt ) ;
         }
       }
       ubxState = SYNC1; // Reset for next message
@@ -314,23 +303,26 @@ void processUBXByte(uint8_t b) {
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void setGNSSData( UBX_NAV_PVT_Payload pvt ) {
+  GPSLatitude = pvt->lat / 10000000.0 ;
+  GPSLongitude = pvt->lon / 10000000.0 ;
+  GPSAccuracy = pvt->hAcc ;
+  GPSFixType = pvt->fixType ;
+  GPSSatteliteCount = pvt->numSV ;
+
+  GNSSYear = pvt->year ;
+  GNSSMonth = pvt->month ;
+  GNSSDay = pvt->day ;
+  GNSSHour = pvt->hour ;
+  GNSSSMin = pvt->min ;
+  GNSSSSec = pvt->sec ;
+}
+// setGNSSData
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Говорит GNSS, что хотим UBX протокол
 void configureGPS_UBX() {
-  // UBX-CFG-MSG
-  //
-  // Class: 0x06
-  // ID:    0x01
-  //
-  // Payload:
-  // 01 = message class NAV
-  // 07 = message ID PVT
-  // 00 = rate on I2C
-  // 01 = rate on UART1
-  // 00 = rate on UART2
-  // 00 = rate on USB
-  // 00 = rate on SPI
-  // 00 = reserved
-
   uint8_t msg[] = {
     0xB5, 0x62,       // UBX sync
     0x06, 0x01,       // CFG-MSG
@@ -344,9 +336,7 @@ void configureGPS_UBX() {
     0x00,             // USB rate
     0x00,             // SPI rate
     0x00              // reserved
-
-    // checksum будет добавлен ниже
-  };
+  } ;
 
   uint8_t ckA = 0;
   uint8_t ckB = 0;

@@ -54,6 +54,9 @@ void handleCellList(char* result) {
     Serial.println( result ) ;
   }
 
+  // "1,1" не пишем
+  if( result[0] == '1' && result[1] == ',' && result[2] == '1' ) return ;
+  
 
   // Если список сот, значит GSM модуль нашел сеть
   if( result[0] == '1' && result[1] == ',' ) {

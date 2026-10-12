@@ -245,9 +245,16 @@ String getNewFileName() {
 
 
 /////////////////////////////////////////////////////////////////////////////////
+bool isSDReady() {
+  return SD.cardSize() == 0 ;
+}
+// isSDReady
+ 
+
+/////////////////////////////////////////////////////////////////////////////////
 // Начинаем запись на карту
 String startRecord() {
-  if( SD.cardSize() == 0 ) {
+  if( !isSDREady() ) {
     return "No SD card" ;
   }
 
@@ -255,13 +262,13 @@ String startRecord() {
     return "No GNSS Fix" ;
   }
 
-  if( !isGPS() ) {
-    return "No GPS data (no connection)" ;
+  if( !isGSM() ) {
+    return "No GSM data" ;
   }
 
   // Имя файла исходя из существующих data_12345.rec файлов +1
   SDFileName = getNewFileName() ;
-  Serial.print( "Recording new file: ") ; Serial.print( SDFileName ) ;
+  Serial.print( F("Recording new file: ")) ; Serial.print( SDFileName ) ;
   isSDCardRecording = true ;
 
   // Создаем файл и пишем заголовок
@@ -302,4 +309,21 @@ String stopRecord() {
   SDFileName = "" ;
   return "Record stopped" ;
 }
+
+
+/////////////////////////////////////////////////////////////////////////////////
+void deleteFile( const String path ) {
+  Serial.print( F("Deleting file")) ; Serial.println( "/" + path ) ;
+  
+  if( SD.exists( "/" + path )) {
+    if( SD.remove( "/" + path )) {
+      Serial.println( F("File deleted successfully")) ;
+    } else {
+      Serial.println( F("Delete failed")) ;
+    }
+  } else {
+    Serial.println( F("File does not exist")) ;
+  }
+}
+// deleteFile
 

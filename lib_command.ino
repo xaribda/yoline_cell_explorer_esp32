@@ -1,6 +1,6 @@
 bool isWebServerRunning() ;
 
-// TODO сделать state uptime, state memory, 
+// TODO сделать state uptime, state memory, state card (сколько места на карте)
 // 
 String executeCommand( String command ) {
 
@@ -52,6 +52,11 @@ String executeCommand( String command ) {
     return isRecording() ? "Recording" : "Not recording" ;
   }
 
+
+  if( command == F("state sd") ) {
+    return isRecording() ? "Recording" : "Not recording" ;
+  }
+
   if( command == F("get date") ) {
     return GNSSDateTimeString() ;
   }
@@ -74,6 +79,10 @@ String executeCommand( String command ) {
     return "" ;
   }
 
+  if( command == F("reboot modem") ) {
+    rebootModem() ;
+    return F("Modem is rebooting") ;
+  }
 
   return "command [" + command + "] not found" ;
 }

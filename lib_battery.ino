@@ -1,7 +1,8 @@
 void loopBattery() {
   if( once( 6200 )) {
-    gsmAsync.addCommand("AT+CBC") ;
-    Serial.println(F("-request AT+CBC")) ; 
+    if( isModemRegistered()) {
+      gsmAsync.addCommand("AT+CBC") ;
+    }
   }
 }
 // loopBattery

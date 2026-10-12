@@ -35,16 +35,6 @@ HardwareSerial gpsHardwareSerial( 1 ) ;
 
 // Асинхронная обработка AT команд (https://github.com/prampec/GsmAsync)
 GsmAsync gsmAsync ;
-void timeoutHandler() ;
-void errorHandler() ;
-void handleCsq(char* result) ;
-void handleCellList(char* result) ;
-
-GsmHandler csqHandler = { "+CSQ:", handleCsq };
-GsmHandler handler2 = { "+CENG:", handleCellList };
-void handleBattery( char* result ) ;
-GsmHandler batteryHandler = { "+CBC:", handleBattery };
-// GsmAsync
 
 // GPS
 #define GPS_TX_PIN 20
@@ -59,7 +49,7 @@ uint64_t chipMacAddress ;
 char chipMacAddressBuffer[13]; // 12 + символ конца строки '\0'
 String formattedChiMacAddress = "" ;
 String globalDeviceName = "" ;
-String globalDeviceVersion = "1.95" ;
+String globalDeviceVersion = "1.97" ;
 
 
 
@@ -127,9 +117,7 @@ void setup() {
 void loop() {
   //doTermitalImitation() ;
 
-  if( once(2000) ) {
-    requestCellList() ;
-  }
+  loopAT() ;
 
   gsmAsync.doLoop() ;
   loopBLE() ;
@@ -144,11 +132,11 @@ void loop() {
 
   loopWEB() ;
 
-  if( once(6000)) {
-    Serial.printf("--- Free Heap: %d bytes\n", ESP.getFreeHeap());
-    Serial.printf("--- Max Alloc Block: %d bytes\n", ESP.getMaxAllocHeap());
-    Serial.printf("--- Min Free Heap Ever: %d bytes\n", ESP.getMinFreeHeap());    
-  }
+  // if( once(6000)) {
+  //   Serial.printf("--- Free Heap: %d bytes\n", ESP.getFreeHeap());
+  //   Serial.printf("--- Max Alloc Block: %d bytes\n", ESP.getMaxAllocHeap());
+  //   Serial.printf("--- Min Free Heap Ever: %d bytes\n", ESP.getMinFreeHeap());    
+  // }
 
   delay(1) ;
 }

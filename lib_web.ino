@@ -1,10 +1,7 @@
 #include "esp_wifi.h"
 #include "esp_bt.h"
-#include <DNSServer.h>
 
 AsyncWebServer server(80) ;
-DNSServer dnsServer ;
-const byte DNS_PORT = 53 ;
 
 String webPassword ;
 bool webServerRunning = false ;
@@ -20,6 +17,9 @@ String webPageHTMLStart() ;
 String webPageHTMLEnd() ;
 String formatBytes(size_t) ;
 
+
+// TODO удаление с карты
+
 ///////////////////////////////////////////////////////////////////////////////////////
 void initWEB() {
   //esp_bt_controller_disable(); 
@@ -34,9 +34,7 @@ void initWEB() {
 
 
 void loopWEB() {
-  if (softAPRunning) {
-    dnsServer.processNextRequest();   // ← очень важно!
-  }  
+  return ;
 }
 // loopWEB
 
@@ -61,20 +59,16 @@ String startWebServer( int channel ) {
 
   
   // Для Android Captive Portal
-  IPAddress apIP(192, 168, 4, 1);
-  IPAddress gateway(192, 168, 4, 1);
-  IPAddress subnet(255, 255, 255, 0);
-  WiFi.softAPConfig( apIP, gateway, subnet);
+  // IPAddress apIP(192, 168, 4, 1);
+  // IPAddress gateway(192, 168, 4, 1);
+  // IPAddress subnet(255, 255, 255, 0);
+  // WiFi.softAPConfig( apIP, gateway, subnet);
 
   bool ok = WiFi.softAP( getDeviceName().c_str(), NULL, channel ) ;
 
 
   if (ok) {
     softAPRunning = true;
-    
-    // DNS: все домены → IP ESP32 (это и есть основа captive portal)
-    dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-    dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
     
     Serial.println("SoftAP + Captive Portal started") ;
     Serial.printf("  SSID:     %s\n", getDeviceName().c_str() ) ;
@@ -87,21 +81,15 @@ String startWebServer( int channel ) {
 
   // --- Основные страницы ---
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    // Удаление файла
+    if( request->hasParam("delete")) {
+      deleteFile( request->getParam("delete")->value()) ;
+    }
+
     //if (!checkAuth(request)) return;
     request->send(200, "text/html", webPageMain() );
   });
 
-  server.on("/bypass", HTTP_GET, [](AsyncWebServerRequest *request) {
-    dnsServer.stop() ;
-    Serial.println("----- handleBypass" ) ;
-
-    // 2. Отправляем заголовок редиректа на нужную страницу
-    request->redirect("http://192.168.4.1/files");
-  }) ;
-
-  server.on("/files", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/html", webPageFiles() );
-  });
 
   server.on("/download", HTTP_GET, [](AsyncWebServerRequest *request) {
     //if (!checkAuth(request)) return;
@@ -126,30 +114,6 @@ String startWebServer( int channel ) {
     request->send(SD, filepath, "application/octet-stream", true);
   });
 
-  // --- Captive Portal: перенаправляем всё на главную ---
-  // Android
-  server.on("/generate_204", HTTP_GET, [](AsyncWebServerRequest *request) {
-    // НЕ возвращаем 204! Иначе Android решит, что интернет есть
-    request->redirect("http://192.168.4.1/");
-  });
-
-  server.on("/gen_204", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->redirect("http://192.168.4.1/");
-  });
-  
-  // Apple
-  server.on("/hotspot-detect.html", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->redirect("/");
-  });
-  
-  // Windows
-  server.on("/ncsi.txt", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->redirect("/");
-  });
-  
-  server.on("/connecttest.txt", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->redirect("/");
-  });
 
   // Всё остальное тоже на главную
   server.onNotFound([](AsyncWebServerRequest *request) {
@@ -203,7 +167,7 @@ void stopWebServer() {
 
 String webPageMain() {
   Serial.println("----- webPageMain" ) ;
-  return webPageHTMLStart() + webPageHTMLFileList( true ) + webPageHTMLEnd() ; 
+  return webPageHTMLStart() + webPageHTMLFileList( false ) + webPageHTMLEnd() ; 
 }
 // webPageMain
 
@@ -233,7 +197,7 @@ String webPageHTMLFileList( bool isCaptive ) {
     <table>
       <thead>
         <tr>
-          <th>File</th><th>Size</th><th>Date</th>
+          <th>File</th><th class='right'>Size</th><th class='right'>Date Time</th><th style="width:10px"></th>
         </tr>
       </thead>
       <tbody>
@@ -265,8 +229,9 @@ String webPageHTMLFileList( bool isCaptive ) {
         } else {
           html += "<td><a href=\"/download?file=/" + name + "\" download=\"" + name + "\">" + name + "</a></td>";
         }
-        html += "<td class='size'>" + formatBytes(file.size()) + "</td>";
-        html += "<td>" + fileYMDHM( file ) + "</td>" ;
+        html += "<td class='size right'>" + formatBytes(file.size()) + "</td>";
+        html += "<td class='size right'>" + fileYMDHM( file ) + "</td>" ;
+        html += "<td><a href='?delete=" + name + "' onclick=\"return confirm('Delete?')\">X</a></td>" ;
         html += "</tr>";
       }
       file.close() ;
@@ -300,20 +265,19 @@ String webPageHTMLStart() {
             <title>Yoline RF Fly Scanner</title>
             <style>
               body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 15px; background: #f5f5f5; }
-              h1 { color: #333; }
-              .card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+              .card { background: white; overflow: hidden; }
               table { width: 100%; border-collapse: collapse; }
-              table th { background: #1a73e8; color: white; padding: 12px 15px; text-align: left; font-size:12px; }
-              table td { padding: 10px 15px; border-bottom: 1px solid #eee; font-size:12px; }
-              tr:hover { background: #f8f9fa; }
+              table th { background: #1a73e8; color: white; padding: 8px 5px; text-align: left; font-size:12px; }
+              table td { padding: 10px 5px; border-bottom: 1px solid #eee; font-size:12px; }
+              table td.right, table th.right { text-align: right; }
               a { color: #1a73e8; text-decoration: none; font-weight: 500; }
+              a.f3 { display: block; margin: 10px 0 20px 0 ; color: #333; text-decoration: none; font-weight: 800; font-size: 18px ;}
               a:hover { text-decoration: underline; }
-              .size { color: #666; font-size: 0.9em; }
               .empty { padding: 40px; text-align: center; color: #999; }
             </style>
           </head>
           <body>
-            <h3>)rawliteral" + getDeviceName() + R"rawliteral(</h3>
+            <a class="f3" href="http://192.168.4.1">)rawliteral" + getDeviceName() + R"rawliteral(</a>
             <div class="card">
           )rawliteral" ;  
 }

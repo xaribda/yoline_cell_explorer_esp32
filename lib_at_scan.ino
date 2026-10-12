@@ -3,6 +3,30 @@ bool isSendCellListToBLE = false ;
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+// Последовательность шагов при инициализации модема
+#define MODEM_INIT_STEP_1 1 // AT -> OK
+#define MODEM_INIT_STEP_2 2 // AT+CPIN? -> READY
+#define MODEM_INIT_STEP_3 3 // AT+CREG? -> ???
+#define MODEM_INIT_STEP_4 4 // AT+CENG? -> список сот
+int initModeSate = MODEM_INIT_STEP_1 ;
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Обработчики AT команд
+void handleOkResponse(char* result) ;
+void timeoutHandler() ;
+void errorHandler() ;
+void handleCsq(char* result) ;
+void handleCellList(char* result) ;
+void handleBattery( char* result ) ;
+
+// GsmHandler csqHandler = { "+CSQ:", handleCsq } ;
+// GsmHandler cellListHandler = { "+CENG:", handleCellList } ;
+// GsmHandler handlerCPIN = { "+CPIN:", handleCPIN } ;
+// GsmHandler batteryHandler = { "+CBC:", handleBattery };
+// GsmAsync
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 void initAT() {
   // Настройка порта для модема (начнем с дефолтных 9600, потом поднимаем)
   //SerialAT.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN);
@@ -17,15 +41,58 @@ void initAT() {
   //gsmAsync.init( &SerialAT, timeoutHandler, errorHandler ) ;
   // gsmAsync.init( &modemSoftwareSerial, timeoutHandler, errorHandler ) ;
   gsmAsync.init( &Serial0, timeoutHandler, errorHandler ) ;
-  gsmAsync.registerHandler( &csqHandler );
-  gsmAsync.registerHandler( &handler2 );
-  gsmAsync.registerHandler( &batteryHandler );
-  gsmAsync.addCommand("ATE0" ) ; // Выключить эхо команд
-  gsmAsync.addCommand("AT+CSQ") ; // Уровень сигнала
+  gsmAsync.registerHandler( new GsmHandler({ "+CSQ:", handleCsq }) ) ;
+  gsmAsync.registerHandler( new GsmHandler({ "+CENG:", handleCellList }) ) ;
+  gsmAsync.registerHandler( new GsmHandler({ "+CBC:", handleBattery }) ) ;
+  gsmAsync.registerHandler( new GsmHandler({ "OK", handleOkResponse })) ;
+  gsmAsync.registerHandler( new GsmHandler({ "+CPIN:", handleCPIN })) ;
+  gsmAsync.registerHandler( new GsmHandler({ "SIM800", handleOkResponse })) ;
+  gsmAsync.registerHandler( new GsmHandler({ "+CREG:", handleCREGResponse })) ;
+  gsmAsync.addCommand( "ATE0" ) ; // Выключить эхо команд
+  //gsmAsync.addCommand("AT+CSQ") ; // Уровень сигнала
   delay( 1000 ) ; 
 
 }
 // initAT
+
+
+void rebootModem() {
+  gsmAsync.addCommand("AT+CFUN=1,1") ;
+  startInitModemSequence() ;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+void startInitModemSequence() {
+  initModeSate = MODEM_INIT_STEP_1 ;
+}
+// startInitModemSequence
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+void loopAT() {
+  if( once( 2000 )) {
+    if( initModeSate == MODEM_INIT_STEP_1 ) {
+      //Serial.println( F("*** Modem #1")) ;
+      gsmAsync.addCommand("ATI") ;
+    }
+
+    if( initModeSate == MODEM_INIT_STEP_2 ) {
+      //Serial.println( F("*** Modem #2")) ;
+      gsmAsync.addCommand("AT+CPIN?") ;
+    }
+
+    if( initModeSate == MODEM_INIT_STEP_3 ) {
+      Serial.println( F("*** Modem #3")) ;
+      gsmAsync.addCommand("AT+CREG?") ;
+    }
+
+    if( initModeSate == MODEM_INIT_STEP_4 ) {
+      //Serial.println( F("*** Modem #3")) ;
+      requestCellList() ;
+    }
+  }
+}
+// loopAT
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,6 +103,44 @@ void requestCellList() {
     toSDBuffer( getGNSSDataAndDateTimeString() ) ; toSDBuffer( "\n" ) ; 
 }
 // requestCellList
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+void handleOkResponse(char* result) {
+  Serial.println( F("*** Modem AT->OK")) ;
+  initModeSate = MODEM_INIT_STEP_2 ;
+}
+// handleOkResponse
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+void handleCREGResponse(char* result) {
+  Serial.print( F("*** Modem CREG->")) ; Serial.println( result ) ;
+  // Ищем последнюю цифру в строке ответа
+  int status = -1;
+  char* p = strrchr( result, ',' ) ; // Ищем запятую (для формата <n>,<stat>)
+  if( p != NULL ) {
+      status = atoi( p + 1 ) ;
+  } else {
+      status = atoi( result) ; // Запятой нет, значит пришло чистое число (URC формат)
+  }
+
+  // Регистрация в домашней сети или роуминге
+  if( status == 1 || status == 5 ) {
+    initModeSate = MODEM_INIT_STEP_4 ;
+  }
+}
+// handleCREGResponse
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+void handleCPIN(char* result) {
+  Serial.print( F("*** Modem CPIN->READY : ")) ; Serial.println( result ) ;
+  initModeSate = MODEM_INIT_STEP_3 ;
+}
+// handleCPIN
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,7 +218,13 @@ String getDeviceVersion() {
 }
 // getDeviceVersion
 
-bool isGPS() {
+bool isGSM() {
   return isAnyCellList ;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Модем инициализирован и зарегистрирован в сети
+bool isModemRegistered() {
+  return initModeSate == MODEM_INIT_STEP_4 ;
+}
+// isModemRegistered

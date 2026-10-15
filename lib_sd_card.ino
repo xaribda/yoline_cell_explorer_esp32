@@ -77,7 +77,7 @@ String generateNextFileName( int id ) {
 void loopSD() {
   if( once(5000)) {
     if (SD.cardSize() == 0) {
-      Serial.println("! No SD card ") ;
+      Serial.println(F("! No SD card ")) ;
     }
   }
 }
@@ -246,7 +246,7 @@ String getNewFileName() {
 
 /////////////////////////////////////////////////////////////////////////////////
 bool isSDReady() {
-  return SD.cardSize() == 0 ;
+  return SD.cardSize() != 0 ;
 }
 // isSDReady
  
@@ -254,7 +254,7 @@ bool isSDReady() {
 /////////////////////////////////////////////////////////////////////////////////
 // Начинаем запись на карту
 String startRecord() {
-  if( !isSDREady() ) {
+  if( !isSDReady() ) {
     return "No SD card" ;
   }
 

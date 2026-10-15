@@ -10,12 +10,16 @@
 #include <SD.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include <esp_task_wdt.h>
 
 //#include <SoftwareSerial.h>
 //#include <TinyGPSPlus.h> // https://github.com/mikalhart/TinyGPSPlus
 
 #include "once.h"
 
+
+// Таймпут watch dog
+#define WDT_TIMEOUT 3
 
 
 
@@ -49,7 +53,7 @@ uint64_t chipMacAddress ;
 char chipMacAddressBuffer[13]; // 12 + символ конца строки '\0'
 String formattedChiMacAddress = "" ;
 String globalDeviceName = "" ;
-String globalDeviceVersion = "1.97" ;
+String globalDeviceVersion = "1.98" ;
 
 
 
@@ -57,12 +61,12 @@ String globalDeviceVersion = "1.97" ;
 void setup() {
   Serial.begin(115200) ;
   delay(1000) ;
-  Serial.println("------------------ YOLINE Cell Explorer (c) 2026 -------------------");
-  Serial.println("------------------ started -----------------------------------------");
+  Serial.println(F("------------------ YOLINE Cell Explorer (c) 2026 -------------------"));
+  Serial.println(F("------------------ started -----------------------------------------"));
 
   chipMacAddress = ESP.getEfuseMac() ;
   snprintf( chipMacAddressBuffer, sizeof(chipMacAddressBuffer), "%04X%08X", (uint16_t)( chipMacAddress >> 32), (uint32_t) chipMacAddress ) ;
-  Serial.print("Serial number: ") ;
+  Serial.print(F("Serial number: ")) ;
   char formattedMacChar[18] ; 
   sprintf( formattedMacChar, "%.2s-%.2s-%.2s-%.2s-%.2s-%.2s", &chipMacAddressBuffer[0], &chipMacAddressBuffer[2], &chipMacAddressBuffer[4], &chipMacAddressBuffer[6], &chipMacAddressBuffer[8], &chipMacAddressBuffer[10]) ;
   formattedChiMacAddress = String(formattedMacChar)   ;
@@ -75,40 +79,46 @@ void setup() {
   oled.setTextColor( WHITE, BLACK ) ; 
   oled.setRotation(1) ;
   oled.clearDisplay() ;
-  oled.setCursor(0, 30); oled.print( "YOLINE");
-  oled.setCursor(0, 40); oled.print( "RF Fly");
-  oled.setCursor(0, 50); oled.print( "Scanner");                                      
-  oled.setCursor(0, 60); oled.print( "v "); oled.print( getDeviceVersion() ) ;
+  oled.setCursor(0, 30); oled.print( F("YOLINE")) ;
+  oled.setCursor(0, 40); oled.print( F("RF Fly")) ;
+  oled.setCursor(0, 50); oled.print( F("Scanner")) ;                                      
+  oled.setCursor(0, 60); oled.print( F("v ")); oled.print( getDeviceVersion() ) ;
   //oled.drawLine( 0, 80, 34, 80, WHITE ) ;
-  drawDottedHLine( 0, 80, 34, WHITE ) ;
+  drawDottedHLine( 0, 80, 14, WHITE ) ;
   oled.setCursor(0, 85); oled.write( (uint8_t*) chipMacAddressBuffer, 6 ) ; 
   oled.setCursor(0, 95); oled.write( chipMacAddressBuffer + 6 ) ; 
 
   oled.display();
 
-  Serial.println("------------------ setup GSM ---------------------------------------") ;
+  Serial.println(F("------------------ setup GSM ---------------------------------------")) ;
   initAT() ;
 
-  gsmAsync.addCommand("AT+CENG=1,1") ; // Инженерный режим с выдачей cellid
-  gsmAsync.addCommand("AT+CENG?") ; // Список сот
-  gsmAsync.addCommand("AT+CSQ") ; // Еще раз
 
 
-  Serial.println("------------------ setup BLE ---------------------------------------") ;
+  Serial.println(F("------------------ setup BLE ---------------------------------------")) ;
   initBLE() ;
   oled.clearDisplay() ; 
 
-  Serial.println("------------------ setup GPS ---------------------------------------") ;
+  Serial.println(F("------------------ setup GPS ---------------------------------------")) ;
   initGPS() ;
 
-  Serial.println("------------------ setup CD CARD -----------------------------------") ;
+  Serial.println(F("------------------ setup CD CARD -----------------------------------")) ;
   initSD() ;
 
   drawStatusPlacement() ;
 
-  Serial.println("------------------ setup WEB server --------------------------------") ;
+  Serial.println(F("------------------ setup WEB server --------------------------------")) ;
   initWEB() ;  
   //startWebServer(13) ;
+
+
+  oled.clearDisplay() ;
+  drawDottedHLine( 0, 100, 63, WHITE ) ;
+  oled.setCursor(0, 105); oled.print( F("Init done!")) ;
+  oled.display();
+
+  esp_task_wdt_init(WDT_TIMEOUT, true); 
+  esp_task_wdt_add(NULL); 
 }
 // setup
 
@@ -120,6 +130,7 @@ void loop() {
   loopAT() ;
 
   gsmAsync.doLoop() ;
+
   loopBLE() ;
 
   loopGPS() ;
@@ -132,13 +143,14 @@ void loop() {
 
   loopWEB() ;
 
-  // if( once(6000)) {
-  //   Serial.printf("--- Free Heap: %d bytes\n", ESP.getFreeHeap());
+  if( once(6000)) {
+    Serial.printf( "--- Free Heap: %d bytes\n", ESP.getFreeHeap());
   //   Serial.printf("--- Max Alloc Block: %d bytes\n", ESP.getMaxAllocHeap());
   //   Serial.printf("--- Min Free Heap Ever: %d bytes\n", ESP.getMinFreeHeap());    
-  // }
+  }
 
   delay(1) ;
+  esp_task_wdt_reset() ; 
 }
 // loop
 

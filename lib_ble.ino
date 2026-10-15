@@ -21,13 +21,13 @@ class MyServerCallbacks : public BLEServerCallbacks {
     // oled.setCursor( 40, 0 ) ;
     // oled.print( "BLE" ) ;
     drawBluethootStatus( 32,0 ) ;
-    Serial.println("--- connected --- ");
+    Serial.println(F("--- connected --- "));
   }
 
   void onDisconnect(BLEServer* pServer) {
     deviceConnected = false;
     oled.fillRect( 32, 0, 8, 8, BLACK ) ;
-    Serial.println("--- disconnected --- ");
+    Serial.println(F("--- disconnected --- "));
   }
 } ;
 // MyServerCallbacks
@@ -40,7 +40,7 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
         std::string value = pCharacteristic->getValue() ;
         String command = String(value.c_str()) ;
 
-        Serial.print("+++ BLE Terminal Command: "); Serial.println( command ) ;
+        Serial.print(F("+++ BLE Terminal Command: ")); Serial.println( command ) ;
         String result = executeCommand( command ) ;
         sendDataToBLE( result.c_str() ) ;          
     }
@@ -104,7 +104,7 @@ void loopBLE() {
   if( !deviceConnected && oldDeviceConnected ) {
     delay(500); // даём стеку BLE время
     pServer->startAdvertising();
-    Serial.println("Снова рекламируем...");
+    Serial.println(F("Advertising one again...")) ;
     oldDeviceConnected = deviceConnected;
   }
 
@@ -119,7 +119,7 @@ void loopBLE() {
 ///////////////////////////////////////////////////////////////////////////////////////
 void sendDataToBLE( const char* dataString ) {
   if( !deviceConnected ) { 
-    Serial.println( "BLE: no connected devices") ;
+    //Serial.println( F("BLE: no connected devices" )) ;
     return ;
   }
 

@@ -114,6 +114,7 @@ void loopGPS() {
   // Считываем все доступные данные из GNSS UART как можно быстрее.
   loopGPS1() ;
 
+  // Проблемы?
   if(once(10000)) {
     loopGPS2() ;
   }
@@ -130,12 +131,13 @@ void loopGPS() {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 // Считываем все доступные байты GNSS.
+uint8_t incomingByte ;
 void loopGPS1() {
   while(gpsHardwareSerial.available() > 0) {
     weGotDataFromGPS = true ;
 
-    uint8_t incomingByte = gpsHardwareSerial.read() ;
-    processUBXByte(incomingByte) ;
+    incomingByte = gpsHardwareSerial.read() ;
+    processUBXByte( incomingByte ) ;
   }
 
   yield() ;
@@ -152,10 +154,10 @@ void loopGPS2() {
 
   if(!rawPositionValid || GPSFixType < 2) {
     sendDataToBLE("! No GPS position solution") ;
-    Serial.println("! No GPS position solution") ;
+    Serial.println(F("! No GPS position solution")) ;
   } else if(lastPvtMs != 0 && (uint32_t)(millis() - lastPvtMs) > GNSS_STALE_TIMEOUT_MS) {
     sendDataToBLE("! GPS data stale") ;
-    Serial.println("! GPS data stale") ;
+    Serial.println(F("! GPS data stale")) ;
   }
 
   weGotDataFromGPS = false ;
@@ -626,37 +628,51 @@ void syncTime() {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
-void syncSystemTimeWithGPS(int year, int month, int day, int hour, int minute, int second) {
-  struct tm t = {} ;
+time_t timegm_simple(struct tm *tm) {
+  // Простая реализация timegm (UTC → epoch)
+  // Не учитывает високосные секунды, но для GPS этого достаточно
+  static const int days_before_month[12] = {
+    0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
+  };
 
-  t.tm_year = year - 1900 ;
-  t.tm_mon = month - 1 ;
-  t.tm_mday = day ;
-  t.tm_hour = hour ;
-  t.tm_min = minute ;
-  t.tm_sec = second ;
-  t.tm_isdst = 0 ;
+  int year = tm->tm_year + 1900;
+  int month = tm->tm_mon;          // 0-11
+  int day = tm->tm_mday;
 
-  char *old_tz = getenv("TZ") ;
+  // Количество дней с 1970-01-01
+  int64_t days = (year - 1970) * 365LL
+               + (year - 1969) / 4   // високосные годы
+               - (year - 1901) / 100
+               + (year - 1601) / 400
+               + days_before_month[month]
+               + day - 1;
 
-  setenv("TZ", "UTC0", 1) ;
-  tzset() ;
-
-  time_t epochTime = mktime(&t) ;
-
-  if(old_tz) {
-    setenv("TZ", old_tz, 1) ;
-  } else {
-    unsetenv("TZ") ;
+  // Коррекция на високосный год, если месяц уже после февраля
+  if (month > 1 && ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0))) {
+    days++;
   }
 
-  tzset() ;
+  return days * 86400LL + tm->tm_hour * 3600 + tm->tm_min * 60 + tm->tm_sec;
+}
 
-  struct timeval tv ;
-  tv.tv_sec = epochTime ;
-  tv.tv_usec = 0 ;
+void syncSystemTimeWithGPS(int year, int month, int day, int hour, int minute, int second) {
+  struct tm t = {};
+  t.tm_year = year - 1900;
+  t.tm_mon  = month - 1;
+  t.tm_mday = day;
+  t.tm_hour = hour;
+  t.tm_min  = minute;
+  t.tm_sec  = second;
+  t.tm_isdst = 0;
 
-  if(settimeofday(&tv, NULL) != 0) {
-    Serial.println("Ошибка установки времени!") ;
+  time_t epochTime = timegm_simple(&t);
+
+  struct timeval tv = {
+    .tv_sec  = epochTime,
+    .tv_usec = 0
+  };
+
+  if (settimeofday(&tv, NULL) != 0) {
+    Serial.println(F("Ошибка установки времени!"));
   }
 }

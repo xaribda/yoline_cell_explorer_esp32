@@ -154,10 +154,10 @@ void loopGPS2() {
 
   if(!filteredPositionValid) {
     sendDataToBLE("! No stable GPS position") ;
-    Serial.println("! No stable GPS position") ;
+    Serial.println(F("! No stable GPS position")) ;
   } else if(lastPvtMs != 0 && (uint32_t)(millis() - lastPvtMs) > GNSS_STALE_TIMEOUT_MS) {
     sendDataToBLE("! GPS data stale") ;
-    Serial.println("! GPS data stale") ;
+    Serial.println(F("! GPS data stale")) ;
   }
 
   weGotDataFromGPS = false ;

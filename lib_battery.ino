@@ -23,7 +23,7 @@ void handleBattery(char* result) {
 
     if (parsed == 3) {
     } else {
-      Serial.print("Error while parsing the battery data: "); Serial.println( result ) ;
+      Serial.print(F("Error while parsing the battery data: ")); Serial.println( result ) ;
       chgStatus = -1 ;
       batteryPercent = -1 ;
       voltageMV = -1 ; 

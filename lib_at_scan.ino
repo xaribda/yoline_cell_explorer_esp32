@@ -2,6 +2,9 @@ bool isAnyCellList = false ;
 bool isSendCellListToBLE = false ;
 
 
+
+#define MODEM_EXCHANGE_SPEED 9600
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Последовательность шагов при инициализации модема
 #define MODEM_INIT_STEP_1 1 // AT -> OK
@@ -32,11 +35,12 @@ void initAT() {
   //SerialAT.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN);
   //modemSoftwareSerial.begin( 9600, SWSERIAL_8N1, RX_PIN, TX_PIN, false );
   Serial0.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN ) ;
-  Serial0.println( "AT+IPR=115200" ) ; 
+  //Serial0.println( "AT+IPR=9600" ) ; 
+  Serial0.println( "AT+IPR=" + String( MODEM_EXCHANGE_SPEED )) ; 
   delay( 200 ) ;
   Serial0.end() ; 
   delay( 100 ) ;
-  Serial0.begin( 115200, SERIAL_8N1, RX_PIN, TX_PIN ) ; 
+  Serial0.begin( MODEM_EXCHANGE_SPEED, SERIAL_8N1, RX_PIN, TX_PIN ) ; 
 
   //gsmAsync.init( &SerialAT, timeoutHandler, errorHandler ) ;
   // gsmAsync.init( &modemSoftwareSerial, timeoutHandler, errorHandler ) ;
@@ -52,6 +56,8 @@ void initAT() {
   //gsmAsync.addCommand("AT+CSQ") ; // Уровень сигнала
   delay( 1000 ) ; 
 
+  startInitModemSequence() ;
+
 }
 // initAT
 
@@ -63,31 +69,32 @@ void rebootModem() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void startInitModemSequence() {
-  initModeSate = MODEM_INIT_STEP_1 ;
+  initModeSate = MODEM_INIT_STEP_3 ;
 }
 // startInitModemSequence
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void loopAT() {
-  if( once( 2000 )) {
+  if( once( 3000 )) {
     if( initModeSate == MODEM_INIT_STEP_1 ) {
-      //Serial.println( F("*** Modem #1")) ;
+      Serial.println( F("*** Modem #1")) ;
       gsmAsync.addCommand("ATI") ;
     }
 
     if( initModeSate == MODEM_INIT_STEP_2 ) {
-      //Serial.println( F("*** Modem #2")) ;
+      Serial.println( F("*** Modem #2")) ;
       gsmAsync.addCommand("AT+CPIN?") ;
     }
 
     if( initModeSate == MODEM_INIT_STEP_3 ) {
       Serial.println( F("*** Modem #3")) ;
       gsmAsync.addCommand("AT+CREG?") ;
+      gsmAsync.addCommand("AT+CENG=1,1") ; // Инженерный режим с выдачей cellid
     }
 
     if( initModeSate == MODEM_INIT_STEP_4 ) {
-      //Serial.println( F("*** Modem #3")) ;
+      Serial.println( F("*** Modem #4")) ;
       requestCellList() ;
     }
   }
@@ -125,6 +132,8 @@ void handleCREGResponse(char* result) {
       status = atoi( result) ; // Запятой нет, значит пришло чистое число (URC формат)
   }
 
+  Serial.print("ok, status: ") ; Serial.println( status ) ;
+
   // Регистрация в домашней сети или роуминге
   if( status == 1 || status == 5 ) {
     initModeSate = MODEM_INIT_STEP_4 ;
@@ -147,7 +156,7 @@ void handleCPIN(char* result) {
 void handleCsq(char* result) {
   int rssi;
   sscanf(result, "%d", &rssi);
-  Serial.print("Signal quality:");
+  Serial.print(F("Signal quality:"));
   Serial.println(rssi);
 }
 

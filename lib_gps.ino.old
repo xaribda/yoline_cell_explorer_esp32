@@ -114,7 +114,7 @@ void loopGPS2() {
 
   if( GPSLatitude == 0.0 ) {
     sendDataToBLE("! No GPS position") ;
-    Serial.println("! No GPS position") ;
+    Serial.println(F("! No GPS position")) ;
   }
 
   weGotDataFromGPS = false ;

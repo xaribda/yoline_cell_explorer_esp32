@@ -148,33 +148,32 @@ void stopWebServer() {
   
   if( softAPRunning ){
     WiFi.softAPdisconnect( true ) ;
-    Serial.println("SoftAP stopped") ;
+    //Serial.println("SoftAP stopped") ;
   }
   
   // Выключаем, экономим энергию
   WiFi.disconnect( true, true ) ; 
   WiFi.mode( WIFI_OFF ) ; 
-  Serial.println("WiFi stopped") ;
+  //Serial.println("WiFi stopped") ;
 
   webPassword = "" ;
   webServerRunning = false;
   softAPRunning = false ;
 
-  Serial.println("Web server stopped") ;
+  //Serial.println("Web server stopped") ;
 }
 // stopWebServer
 
 
 String webPageMain() {
-  Serial.println("----- webPageMain" ) ;
+  //Serial.println("----- webPageMain" ) ;
   return webPageHTMLStart() + webPageHTMLFileList( false ) + webPageHTMLEnd() ; 
 }
 // webPageMain
 
 
 String webPageFiles() {
-  Serial.println("----- webPageFiles" ) ;
-
+  //Serial.println("----- webPageFiles" ) ;
   return webPageHTMLStart() + webPageHTMLFileList( false ) + webPageHTMLEnd() ; 
 }
 // webPageMain

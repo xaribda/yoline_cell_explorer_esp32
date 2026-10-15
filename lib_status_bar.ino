@@ -30,6 +30,7 @@ void gnssStatus() {
   oled.print( GPSSatteliteCount ) ; 
 
   drawSatteliteTypeStatus( 13, 0, GPSFixType ) ;
+  oled.display() ;
 
   //oled.print( ":" ); oled.print( GPSFixType ) ; 
 }

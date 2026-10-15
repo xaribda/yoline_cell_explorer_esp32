@@ -70,6 +70,15 @@ String executeCommand( String command ) {
   }
 
 
+  if( command == F("uptime") ) {
+    return "uptime seconds: " + String( (unsigned long) millis() / 1000 ) ;
+  }
+
+  if( command == F("get memory") ) {
+    return "free: " + String( ESP.getFreeHeap() ) ;
+  }
+
+
   if( command == F("reboot") ) {
     if( isRecording() ) stopRecord() ;
     if( isWebServerRunning()) stopWebServer() ;

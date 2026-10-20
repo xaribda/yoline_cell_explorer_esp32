@@ -150,11 +150,12 @@ void loopGPS2() {
   if(!weGotDataFromGPS) {
     sendDataToBLE("! GPS not found (not connected)") ;
     Serial.println("! GPS not found (not connected)") ;
+    blink( 255, 200, 0 ) ;
   }
 
   if(!rawPositionValid || GPSFixType < 2) {
     sendDataToBLE("! No GPS position solution") ;
-    Serial.println(F("! No GPS position solution")) ;
+    Serial.println(F("! No GPS position solution")) ;    
   } else if(lastPvtMs != 0 && (uint32_t)(millis() - lastPvtMs) > GNSS_STALE_TIMEOUT_MS) {
     sendDataToBLE("! GPS data stale") ;
     Serial.println(F("! GPS data stale")) ;

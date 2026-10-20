@@ -33,6 +33,7 @@ Adafruit_SSD1306 oled( 128, 64, &Wire, -1 ) ;
 #define RX_PIN 3  // Сюда подключаем 3VT (TX модема)
 #define TX_PIN 4  // Сюда подключаем 3VR (RX модема)
 
+
 // Создаем аппаратный сериал для модема
 //HardwareSerial SerialAT(1);
 HardwareSerial gpsHardwareSerial( 1 ) ;
@@ -59,10 +60,18 @@ String globalDeviceVersion = "1.98" ;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
-  Serial.begin(115200) ;
-  delay(1000) ;
+  initLED() ;
+  led2( 1 ) ;
+
+  Serial.begin( 115200 ) ;
+  for( uint8_t i = 0 ; i < 55 ; i++ ) {
+    led2( i ) ;
+    delay( 10 ) ;
+  }
+
   Serial.println(F("------------------ YOLINE Cell Explorer (c) 2026 -------------------"));
   Serial.println(F("------------------ started -----------------------------------------"));
+
 
   chipMacAddress = ESP.getEfuseMac() ;
   snprintf( chipMacAddressBuffer, sizeof(chipMacAddressBuffer), "%04X%08X", (uint16_t)( chipMacAddress >> 32), (uint32_t) chipMacAddress ) ;
@@ -71,6 +80,9 @@ void setup() {
   sprintf( formattedMacChar, "%.2s-%.2s-%.2s-%.2s-%.2s-%.2s", &chipMacAddressBuffer[0], &chipMacAddressBuffer[2], &chipMacAddressBuffer[4], &chipMacAddressBuffer[6], &chipMacAddressBuffer[8], &chipMacAddressBuffer[10]) ;
   formattedChiMacAddress = String(formattedMacChar)   ;
   globalDeviceName = "YOLINE RF " + formattedChiMacAddress ;
+
+  led2( 55 ) ;
+
 
   Serial.println( formattedChiMacAddress ) ;
 
@@ -90,20 +102,29 @@ void setup() {
 
   oled.display();
 
+  led2( 75 ) ;
+
   Serial.println(F("------------------ setup GSM ---------------------------------------")) ;
   initAT() ;
 
+  led2( 95 ) ;
 
 
   Serial.println(F("------------------ setup BLE ---------------------------------------")) ;
   initBLE() ;
   oled.clearDisplay() ; 
 
+  led2( 115 ) ;
+
   Serial.println(F("------------------ setup GPS ---------------------------------------")) ;
   initGPS() ;
 
+  led2( 125 ) ;
+
   Serial.println(F("------------------ setup CD CARD -----------------------------------")) ;
   initSD() ;
+
+  led2( 145 ) ;
 
   drawStatusPlacement() ;
 
@@ -111,21 +132,25 @@ void setup() {
   initWEB() ;  
   //startWebServer(13) ;
 
+  led2( 165 ) ;
 
   oled.clearDisplay() ;
   drawDottedHLine( 0, 100, 63, WHITE ) ;
   oled.setCursor(0, 105); oled.print( F("Init done!")) ;
   oled.display();
 
-  esp_task_wdt_init(WDT_TIMEOUT, true); 
-  esp_task_wdt_add(NULL); 
+  esp_task_wdt_init( WDT_TIMEOUT, true); 
+  esp_task_wdt_add( NULL); 
+
+  led2( 175 ) ;
+
 }
 // setup
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {
-  //doTermitalImitation() ;
+  loopLED() ;
 
   loopAT() ;
 
@@ -153,8 +178,6 @@ void loop() {
   esp_task_wdt_reset() ; 
 }
 // loop
-
-
 
 
 

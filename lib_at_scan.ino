@@ -13,6 +13,10 @@ bool isSendCellListToBLE = false ;
 #define MODEM_INIT_STEP_4 4 // AT+CENG? -> список сот
 int initModeSate = MODEM_INIT_STEP_1 ;
 
+bool GSMModemConnected = false ;
+bool GSMTimeout = true ;
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Обработчики AT команд
 void handleOkResponse(char* result) ;
@@ -65,6 +69,7 @@ void initAT() {
 void rebootModem() {
   gsmAsync.addCommand("AT+CFUN=1,1") ;
   startInitModemSequence() ;
+  GSMModemConnected = false ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,6 +113,7 @@ void requestCellList() {
     gsmAsync.addCommand("AT+CENG?") ;
     // Сначала пишем GPS координаты и дату-время, функция не работает, если нет фикса
     toSDBuffer( getGNSSDataAndDateTimeString() ) ; toSDBuffer( "\n" ) ; 
+    modemIsOk() ;
 }
 // requestCellList
 
@@ -116,6 +122,7 @@ void requestCellList() {
 void handleOkResponse(char* result) {
   Serial.println( F("*** Modem AT->OK")) ;
   initModeSate = MODEM_INIT_STEP_2 ;
+  modemIsOk() ;
 }
 // handleOkResponse
 
@@ -138,6 +145,7 @@ void handleCREGResponse(char* result) {
   if( status == 1 || status == 5 ) {
     initModeSate = MODEM_INIT_STEP_4 ;
   }
+  modemIsOk() ;
 }
 // handleCREGResponse
 
@@ -148,6 +156,7 @@ void handleCREGResponse(char* result) {
 void handleCPIN(char* result) {
   Serial.print( F("*** Modem CPIN->READY : ")) ; Serial.println( result ) ;
   initModeSate = MODEM_INIT_STEP_3 ;
+  modemIsOk() ;
 }
 // handleCPIN
 
@@ -158,6 +167,7 @@ void handleCsq(char* result) {
   sscanf(result, "%d", &rssi);
   Serial.print(F("Signal quality:"));
   Serial.println(rssi);
+  modemIsOk() ;
 }
 
 
@@ -179,6 +189,7 @@ void handleCellList(char* result) {
 
   toSDBuffer( result ) ; toSDBuffer( "\n" ) ; 
   displayOneCell( result ) ;
+  modemIsOk() ;
 }
 // handleCellList
 
@@ -191,6 +202,7 @@ void timeoutHandler() {
 
   sendDataToBLE("! GSM timeout") ;
   Serial.println(F("GSM not responding"));
+  GSMTimeout = true ;
 }
 // timeoutHandler
 
@@ -200,9 +212,11 @@ void errorHandler() {
   oled.setCursor(0, 40);
   oled.print("GSM err 02");
   oled.display();
+  GSMModemConnected = false ;
 
   sendDataToBLE("! GSM error") ;
   Serial.println(F("GSM Error"));
+ 
 }
 // errorHandler
 
@@ -231,9 +245,22 @@ bool isGSM() {
   return isAnyCellList ;
 }
 
+void modemIsOk() {
+  GSMModemConnected = true ;
+  GSMTimeout = false ;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Модем инициализирован и зарегистрирован в сети
 bool isModemRegistered() {
   return initModeSate == MODEM_INIT_STEP_4 ;
 }
 // isModemRegistered
+
+bool isGSMModemConnected() {
+  return GSMModemConnected ;
+}
+
+bool isGSMTimeout() {
+  return GSMTimeout ;
+}

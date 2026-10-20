@@ -48,6 +48,7 @@ void initSD() {
   
   if( !SD.begin( SD_PIN_CS, SDSPI, 1000000 )) {
     Serial.println(F("! SD card problem, check wiring")) ;
+    led( 0, 100, 100 ) ;
     return;
   } else {
     // Serial.println("---------- FILES ON SD ---------------------------------------------");
@@ -75,9 +76,10 @@ String generateNextFileName( int id ) {
 
 /////////////////////////////////////////////////////////////////////////////
 void loopSD() {
-  if( once(5000)) {
+  if( once(6300)) {
     if (SD.cardSize() == 0) {
       Serial.println(F("! No SD card ")) ;
+      blink( 0, 200, 100 ) ;
     }
   }
 }

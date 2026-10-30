@@ -40,15 +40,19 @@ unsigned long lastSaveTime = 0 ;
 const size_t MAX_BUFFER_SIZE = 1024 ; // Запись при достижении 
 
 
+// Сколько было плохих SD карт
+#define MAX_BAD_SD_CRAD_COUNT 4
+int badSDCardCount = 0 ;
+
 /////////////////////////////////////////////////////////////////////////////
 void initSD() {
   pinMode( SD_PIN_CS, OUTPUT ) ;
   digitalWrite( SD_PIN_CS, HIGH ) ;
   SDSPI.begin( SD_PIN_SCK, SD_PIN_MISO, SD_PIN_MOSI, SD_PIN_CS ) ;
+  badSDCardCount = 0 ;
   
   if( !SD.begin( SD_PIN_CS, SDSPI, 1000000 )) {
     Serial.println(F("! SD card problem, check wiring")) ;
-    led( 0, 100, 100 ) ;
     return;
   } else {
     // Serial.println("---------- FILES ON SD ---------------------------------------------");
@@ -79,7 +83,12 @@ void loopSD() {
   if( once(6300)) {
     if (SD.cardSize() == 0) {
       Serial.println(F("! No SD card ")) ;
-      blink( 0, 200, 100 ) ;
+      badSDCardCount++ ;
+
+      // Пробуем переинициализировать SD карту
+      if( badSDCardCount > MAX_BAD_SD_CRAD_COUNT ) {
+        initSD() ;
+      }
     }
   }
 }
@@ -186,16 +195,24 @@ void saveBufferToSD() {
   drawRecordingStatus() ;
   oled.display() ;
 
+  // Мигаем синим
+  led( 0, 0, 60 ) ;
+
   File file = SD.open( SDFileName, FILE_APPEND ) ;
   if( file ) {
+    led( 0, 0, 120 ) ;
+
     file.print( ramSDBuffer ) ;
     file.close() ;
     ramSDBuffer = "" ; 
     Serial.print("\\\\ Data saved to SD file: ") ;
     Serial.println( SDFileName ) ;
     lastSaveTime = millis() ;
+    // Включаем обратно голубой
+    led( 0, 0, 20 ) ;
   } else {
     Serial.println("\\\\ SD write error!") ;
+    led( 120, 0, 0 ) ;
   }
 
   drawRecordCDStatus( 21, 0 ) ;
@@ -295,20 +312,26 @@ String startRecord() {
 
 /////////////////////////////////////////////////////////////////////////////////
 String stopRecord() {
+  Serial.println("stopRecord 1") ;
   // Сбросили буфер, если есть
   saveBufferToSD() ;
 
   // Записали хвостик, если есть хвостик, значит запись была остановлена, а не прервана
+  Serial.println("stopRecord 2") ;
   String end = "\n<end>\n" ;
   end+= "end: " + GNSSDateTimeString() + "\n" ;
   end+= "</end>\n" ;
+  Serial.println("stopRecord 3") ;
   File file = SD.open( SDFileName, FILE_APPEND ) ;
   file.print( end ) ;
   file.close() ;
+  Serial.println("stopRecord 4") ;
 
   isSDCardRecording = false ;
   clearRecordingStatus() ; 
   SDFileName = "" ;
+  led( 0, 0, 0 ) ;  
+  Serial.println("stopRecord 5") ;
   return "Record stopped" ;
 }
 

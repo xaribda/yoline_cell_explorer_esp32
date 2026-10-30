@@ -1,9 +1,11 @@
-bool isAnyCellList = false ;
-bool isSendCellListToBLE = false ;
+
+// Назначаем пины
+#define RX_PIN 3  // Сюда подключаем 3VT (TX модема)
+#define TX_PIN 4  // Сюда подключаем 3VR (RX модема)
 
 
-
-#define MODEM_EXCHANGE_SPEED 9600
+//#define MODEM_EXCHANGE_SPEED 9600
+#define MODEM_EXCHANGE_SPEED 115200
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Последовательность шагов при инициализации модема
@@ -15,6 +17,8 @@ int initModeSate = MODEM_INIT_STEP_1 ;
 
 bool GSMModemConnected = false ;
 bool GSMTimeout = true ;
+bool isAnyCellList = false ;
+bool isSendCellListToBLE = false ;
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -74,7 +78,7 @@ void rebootModem() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void startInitModemSequence() {
-  initModeSate = MODEM_INIT_STEP_3 ;
+  initModeSate = MODEM_INIT_STEP_1 ;
 }
 // startInitModemSequence
 
@@ -164,9 +168,7 @@ void handleCPIN(char* result) {
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void handleCsq(char* result) {
   int rssi;
-  sscanf(result, "%d", &rssi);
-  Serial.print(F("Signal quality:"));
-  Serial.println(rssi);
+  sendDataToBLE( result ) ;
   modemIsOk() ;
 }
 
@@ -201,7 +203,7 @@ void timeoutHandler() {
   oled.display();
 
   sendDataToBLE("! GSM timeout") ;
-  Serial.println(F("GSM not responding"));
+  Serial.println(F("GSM not responding (timeout)"));
   GSMTimeout = true ;
 }
 // timeoutHandler
@@ -263,4 +265,9 @@ bool isGSMModemConnected() {
 
 bool isGSMTimeout() {
   return GSMTimeout ;
+}
+
+
+void requestSignalLevel() {
+  gsmAsync.addCommand("AT+CSQ") ;
 }

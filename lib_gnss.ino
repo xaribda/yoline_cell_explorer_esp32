@@ -24,6 +24,8 @@ uint8_t  GNSSHour = 0 ;
 uint8_t  GNSSSMin = 0 ;
 uint8_t  GNSSSSec = 0 ;
 
+bool GNSSBadFix = true ;
+
 // ============================================================================
 // Настройки фильтра
 // ============================================================================
@@ -99,6 +101,15 @@ int getGNSSFixType() {
   return GPSFixType ;
 }
 
+bool isBadFix() {
+  return GNSSBadFix ;
+}
+
+
+bool isBadGNSSConnection() {
+  return !weGotDataFromGPS ;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 void initGPS() {
   gpsHardwareSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN) ;
@@ -150,15 +161,19 @@ void loopGPS2() {
   if(!weGotDataFromGPS) {
     sendDataToBLE("! GPS not found (not connected)") ;
     Serial.println("! GPS not found (not connected)") ;
-    blink( 255, 200, 0 ) ;
+    //blink( 255, 200, 0 ) ;
   }
 
   if(!rawPositionValid || GPSFixType < 2) {
+    GNSSBadFix = true ;
     sendDataToBLE("! No GPS position solution") ;
     Serial.println(F("! No GPS position solution")) ;    
   } else if(lastPvtMs != 0 && (uint32_t)(millis() - lastPvtMs) > GNSS_STALE_TIMEOUT_MS) {
+    GNSSBadFix = true ;
     sendDataToBLE("! GPS data stale") ;
     Serial.println(F("! GPS data stale")) ;
+  } else {
+    GNSSBadFix = false ;
   }
 
   weGotDataFromGPS = false ;
@@ -200,14 +215,11 @@ String GNSSDateTimeFormattedString() {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 String GNSSDateTimeString() {
-  if(GNSSYear == 0)
-    return "xx.xx.xxxx xx:xx:xx" ;
+  if(GNSSYear == 0) return "xx.xx.xxxx xx:xx:xx" ;
 
-  char buffer[20] ;
-
+  char buffer[26] ;
   snprintf(buffer, sizeof(buffer), "%02d.%02d.%04d %02d:%02d:%02d", GNSSDay, GNSSMonth, GNSSYear, GNSSHour, GNSSSMin, GNSSSSec) ;
-
-  return String(buffer) ;
+  return String( buffer ) ;
 }
 
 // ============================================================================

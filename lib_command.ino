@@ -78,6 +78,11 @@ String executeCommand( String command ) {
     return "free: " + String( ESP.getFreeHeap() ) ;
   }
 
+  if( command == F("get signal") ) {
+    requestSignalLevel() ;
+    return "sent" ;
+  }
+
 
   if( command == F("reboot") ) {
     if( isRecording() ) stopRecord() ;

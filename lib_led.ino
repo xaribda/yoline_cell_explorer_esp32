@@ -38,35 +38,35 @@ void loopLED() {
     if( once( 1000 )) {
         // Нет GSM модуля
         if( !isGSMModemConnected() ) {
-            Serial.println("BLINK:: isGSMModemConnected") ;
+            //Serial.println("BLINK:: isGSMModemConnected") ;
             blink( 55, 0, 0 ) ;
             return ;            
         }
 
         // GSM модуль слишком долго отвечает
         if ( isGSMTimeout() ) {
-            Serial.println("BLINK:: isGSMTimeout") ;
+            //Serial.println("BLINK:: isGSMTimeout") ;
             blink( 55, 0, 0 ) ;
             return ;            
         }
 
         // Нет списка сот
         if ( !isGSM() ) {
-            Serial.println("BLINK:: isGSM") ;
+            //Serial.println("BLINK:: isGSM") ;
             blink( 55, 0, 0 ) ;
             return ;            
         }
 
         // SD карта готова к записи
         if( !isSDReady() ) {
-            Serial.println("BLINK:: isSDReady") ;
+            //Serial.println("BLINK:: isSDReady") ;
             blink( 55, 55, 0 ) ;
             return ;            
         }
 
         // Нет данных от GNSS модуля
         if( isBadGNSSConnection() ) {
-            Serial.println("BLINK:: isBadGNSSConnection") ;
+            //Serial.println("BLINK:: isBadGNSSConnection") ;
             blink( 0, 55, 0 ) ;
             return ;            
         }
@@ -74,14 +74,14 @@ void loopLED() {
 
         // Нет положения
         if( isBadFix() ) {
-            Serial.println("BLINK:: isBadFix") ;
+            //Serial.println("BLINK:: isBadFix") ;
             blink( 15, 75, 0 ) ;
             return ;            
         }
 
         // Все в порядке, готовы к записи - редко мигаем белым
         if( once( 3000 ) && !isRecording() ) {
-            Serial.println("BLINK:: Ready!") ;
+            //Serial.println("BLINK:: Ready!") ;
             shortBlink( 70, 100, 100 ) ;
         }
 

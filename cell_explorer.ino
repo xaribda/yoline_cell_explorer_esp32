@@ -165,11 +165,11 @@ void loop() {
 
   loopWEB() ;
 
-  if( once(6000)) {
-    Serial.printf( "--- Free Heap: %d bytes\n", ESP.getFreeHeap());
-  //   Serial.printf("--- Max Alloc Block: %d bytes\n", ESP.getMaxAllocHeap());
-  //   Serial.printf("--- Min Free Heap Ever: %d bytes\n", ESP.getMinFreeHeap());    
-  }
+  // if( once(6000)) {
+  //   Serial.printf( "--- Free Heap: %d bytes\n", ESP.getFreeHeap());
+  // //   Serial.printf("--- Max Alloc Block: %d bytes\n", ESP.getMaxAllocHeap());
+  // //   Serial.printf("--- Min Free Heap Ever: %d bytes\n", ESP.getMinFreeHeap());    
+  // }
 
   delay(1) ;
   esp_task_wdt_reset() ; 

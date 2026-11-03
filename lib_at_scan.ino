@@ -21,6 +21,13 @@ bool isAnyCellList = false ;
 bool isSendCellListToBLE = false ;
 
 
+#define MAX_GSM_ERROR_COUNT 4
+int GSMErrorCount = 0 ;
+
+#define MAX_GSM_REGISTRATION_FAIL_COUNT 5
+int GSMRegistrationFailedCount = 0 ;
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Обработчики AT команд
 void handleOkResponse(char* result) ;
@@ -42,13 +49,21 @@ void initAT() {
   // Настройка порта для модема (начнем с дефолтных 9600, потом поднимаем)
   //SerialAT.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN);
   //modemSoftwareSerial.begin( 9600, SWSERIAL_8N1, RX_PIN, TX_PIN, false );
-  Serial0.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN ) ;
-  //Serial0.println( "AT+IPR=9600" ) ; 
-  Serial0.println( "AT+IPR=" + String( MODEM_EXCHANGE_SPEED )) ; 
-  delay( 200 ) ;
-  Serial0.end() ; 
+  Serial0.end() ;
   delay( 100 ) ;
-  Serial0.begin( MODEM_EXCHANGE_SPEED, SERIAL_8N1, RX_PIN, TX_PIN ) ; 
+  Serial0.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN ) ;
+  delay( 200 ) ;
+  Serial0.println( "AT+IPR=9600" ) ; 
+  delay( 200 ) ;
+
+  //Serial0.println( "AT+IPR=9600" ) ; 
+  // Serial0.println( "AT+IPR=" + String( MODEM_EXCHANGE_SPEED )) ; 
+  // Serial0.end() ; 
+  // delay( 100 ) ;
+  // Serial0.begin( MODEM_EXCHANGE_SPEED, SERIAL_8N1, RX_PIN, TX_PIN ) ; 
+
+  GSMErrorCount = 0 ;   
+  GSMRegistrationFailedCount = 0 ;
 
   //gsmAsync.init( &SerialAT, timeoutHandler, errorHandler ) ;
   // gsmAsync.init( &modemSoftwareSerial, timeoutHandler, errorHandler ) ;
@@ -75,6 +90,24 @@ void rebootModem() {
   startInitModemSequence() ;
   GSMModemConnected = false ;
 }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+void restartGSMRegistration() {
+  // Все возвращаем в исходное состояние
+  GSMErrorCount = 0 ;
+  GSMRegistrationFailedCount = 0 ; 
+  initModeSate == MODEM_INIT_STEP_1 ;
+
+  gsmAsync.addCommand("AT+COPS=0") ;
+  delay(1000) ;
+  gsmAsync.addCommand("AT+CFUN=0") ;
+  delay(1000) ;
+  gsmAsync.addCommand("AT+CFUN=1") ;
+  Serial.println(F("------ Forced GSM registration")) ;
+}
+// restartGSMRegistration
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void startInitModemSequence() {
@@ -145,9 +178,27 @@ void handleCREGResponse(char* result) {
 
   Serial.print("ok, status: ") ; Serial.println( status ) ;
 
+
+  // Нулевой статус означает, что модем перестал пытаться зарегистрироваться в сети, даем ему несколько интервалов и заставляем регистрироваться по-новой
+  if( status == 0 ) {
+    GSMRegistrationFailedCount++ ;
+
+    if( GSMRegistrationFailedCount > MAX_GSM_REGISTRATION_FAIL_COUNT ) {
+      return restartGSMRegistration() ;
+    }
+  }
+
+  // Идет поиск сети
+  if( status == 2 ) {
+    sendDataToBLE("GSM: searching for network..") ;
+  }
+
   // Регистрация в домашней сети или роуминге
   if( status == 1 || status == 5 ) {
     initModeSate = MODEM_INIT_STEP_4 ;
+    GSMRegistrationFailedCount = 0 ;
+  } else {
+    sendDataToBLE("GSM: this SIM card is not alllowed to register") ;
   }
   modemIsOk() ;
 }
@@ -205,8 +256,16 @@ void timeoutHandler() {
   sendDataToBLE("! GSM timeout") ;
   Serial.println(F("GSM not responding (timeout)"));
   GSMTimeout = true ;
+
+  GSMErrorCount++ ;
+
+  if( GSMErrorCount > MAX_GSM_ERROR_COUNT ) {
+    Serial.println(F("Restarting AT init procedure"));
+    initAT() ;
+  }
 }
 // timeoutHandler
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -250,6 +309,7 @@ bool isGSM() {
 void modemIsOk() {
   GSMModemConnected = true ;
   GSMTimeout = false ;
+  GSMErrorCount = 0 ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

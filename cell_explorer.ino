@@ -53,17 +53,21 @@ String formattedChiMacAddress = "" ;
 String globalDeviceName = "" ;
 String globalDeviceVersion = "1.98" ;
 
-
+extern "C" {
+  void esp_brownout_disable(void);
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
+  // Отрубаем контроль за просадкой напряжения
+  //esp_brownout_disable() ;
   initLED() ;
-  led2( 21 ) ;
+  led2( 1 ) ;
 
   Serial.begin( 115200 ) ;
-  for( uint8_t i = 0 ; i < 55 ; i++ ) {
-    led2( 20 + i ) ;
-    delay( 10 ) ;
+  for( uint8_t i = 1 ; i < 25 ; i++ ) {
+    led2( i ) ;
+    delay( 20 ) ;
   }
 
   Serial.println(F("------------------ YOLINE Cell Explorer (c) 2026 -------------------"));
@@ -78,7 +82,7 @@ void setup() {
   formattedChiMacAddress = String(formattedMacChar)   ;
   globalDeviceName = "YOLINE RF " + formattedChiMacAddress ;
 
-  led2( 55 ) ;
+  led2( 35 ) ;
 
 
   Serial.println( formattedChiMacAddress ) ;
@@ -99,29 +103,29 @@ void setup() {
 
   oled.display();
 
-  led2( 75 ) ;
+  led2( 40 ) ;
 
   Serial.println(F("------------------ setup GSM ---------------------------------------")) ;
   initAT() ;
 
-  led2( 95 ) ;
+  led2( 45 ) ;
 
 
   Serial.println(F("------------------ setup BLE ---------------------------------------")) ;
   initBLE() ;
   oled.clearDisplay() ; 
 
-  led2( 115 ) ;
+  led2( 50 ) ;
 
   Serial.println(F("------------------ setup GPS ---------------------------------------")) ;
   initGPS() ;
 
-  led2( 125 ) ;
+  led2( 55 ) ;
 
   Serial.println(F("------------------ setup CD CARD -----------------------------------")) ;
   initSD() ;
 
-  led2( 145 ) ;
+  led2( 60 ) ;
 
   drawStatusPlacement() ;
 
@@ -129,17 +133,17 @@ void setup() {
   initWEB() ;  
   //startWebServer(13) ;
 
-  led2( 165 ) ;
+  led2( 65 ) ;
 
   oled.clearDisplay() ;
   drawDottedHLine( 0, 100, 63, WHITE ) ;
   oled.setCursor(0, 105); oled.print( F("Init done!")) ;
   oled.display();
 
-  esp_task_wdt_init( WDT_TIMEOUT, true); 
-  esp_task_wdt_add( NULL); 
+  esp_task_wdt_init( WDT_TIMEOUT, true ) ; 
+  esp_task_wdt_add( NULL ) ; 
 
-  led2( 175 ) ;
+  led2( 70 ) ;
 
 }
 // setup
@@ -150,8 +154,6 @@ void loop() {
   loopLED() ;
 
   loopAT() ;
-
-  gsmAsync.doLoop() ;
 
   loopBLE() ;
 
@@ -171,7 +173,6 @@ void loop() {
   // //   Serial.printf("--- Min Free Heap Ever: %d bytes\n", ESP.getMinFreeHeap());    
   // }
 
-  delay(1) ;
   esp_task_wdt_reset() ; 
 }
 // loop

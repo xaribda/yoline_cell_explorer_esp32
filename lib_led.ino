@@ -75,7 +75,7 @@ void loopLED() {
         // Нет положения
         if( isBadFix() ) {
             //Serial.println("BLINK:: isBadFix") ;
-            blink( 15, 75, 0 ) ;
+            blink( 0, 55, 0 ) ;
             return ;            
         }
 

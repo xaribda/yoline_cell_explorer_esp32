@@ -54,6 +54,7 @@ void initAT() {
   Serial0.begin( 9600, SERIAL_8N1, RX_PIN, TX_PIN ) ;
   delay( 200 ) ;
   Serial0.println( "AT+IPR=9600" ) ; 
+  esp_task_wdt_reset() ; 
   delay( 200 ) ;
 
   //Serial0.println( "AT+IPR=9600" ) ; 
@@ -75,9 +76,13 @@ void initAT() {
   gsmAsync.registerHandler( new GsmHandler({ "+CPIN:", handleCPIN })) ;
   gsmAsync.registerHandler( new GsmHandler({ "SIM800", handleOkResponse })) ;
   gsmAsync.registerHandler( new GsmHandler({ "+CREG:", handleCREGResponse })) ;
+  gsmAsync.registerHandler( new GsmHandler({ "+CME ERROR:", handleCmeError })) ;
+  gsmAsync.registerHandler( new GsmHandler({ "+CMS ERROR:", handleCmsError })) ;
+  gsmAsync.registerHandler( new GsmHandler({ "+CCID:", handleCCID })) ;
   gsmAsync.addCommand( "ATE0" ) ; // Выключить эхо команд
   //gsmAsync.addCommand("AT+CSQ") ; // Уровень сигнала
-  delay( 1000 ) ; 
+  esp_task_wdt_reset() ;
+  delay( 900 ) ; 
 
   startInitModemSequence() ;
 
@@ -94,6 +99,9 @@ void rebootModem() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void restartGSMRegistration() {
+  // Дадим себе запас по времени в 5 секунд
+  esp_task_wdt_init( 5, true ) ; 
+
   // Все возвращаем в исходное состояние
   GSMErrorCount = 0 ;
   GSMRegistrationFailedCount = 0 ; 
@@ -101,10 +109,15 @@ void restartGSMRegistration() {
 
   gsmAsync.addCommand("AT+COPS=0") ;
   delay(1000) ;
+
   gsmAsync.addCommand("AT+CFUN=0") ;
   delay(1000) ;
+  
   gsmAsync.addCommand("AT+CFUN=1") ;
   Serial.println(F("------ Forced GSM registration")) ;
+ 
+  // Все возвращаем в исходное состояние
+  esp_task_wdt_init( WDT_TIMEOUT, true ) ; 
 }
 // restartGSMRegistration
 
@@ -118,6 +131,8 @@ void startInitModemSequence() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void loopAT() {
+  gsmAsync.doLoop() ;
+
   if( once( 3000 )) {
     if( initModeSate == MODEM_INIT_STEP_1 ) {
       Serial.println( F("*** Modem #1")) ;
@@ -179,11 +194,12 @@ void handleCREGResponse(char* result) {
   Serial.print("ok, status: ") ; Serial.println( status ) ;
 
 
-  // Нулевой статус означает, что модем перестал пытаться зарегистрироваться в сети, даем ему несколько интервалов и заставляем регистрироваться по-новой
+  // Нулевой статус означает, что модем перестал пытаться зарегистрироваться в сети, даем ему несколько попыток и заставляем регистрироваться по-новой
   if( status == 0 ) {
     GSMRegistrationFailedCount++ ;
 
     if( GSMRegistrationFailedCount > MAX_GSM_REGISTRATION_FAIL_COUNT ) {
+      sendDataToBLE("GSM: restart network search..") ;
       return restartGSMRegistration() ;
     }
   }
@@ -209,11 +225,24 @@ void handleCREGResponse(char* result) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void handleCPIN(char* result) {
-  Serial.print( F("*** Modem CPIN->READY : ")) ; Serial.println( result ) ;
-  initModeSate = MODEM_INIT_STEP_3 ;
-  modemIsOk() ;
+  Serial.print( F("*** Modem AT+CPIN: ")) ; Serial.println( result ) ;
+
+  if( strcmp( result, "READY" ) == 0 ){
+    initModeSate = MODEM_INIT_STEP_3 ;
+    modemIsOk() ;
+  } else {
+    gsmAsync.addCommand("AT+CCID?") ;
+  }
 }
 // handleCPIN
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// ID сим карты
+void handleCCID( char* result) {
+  Serial.print( F("*** Modem AT+CCID: ")) ; Serial.println( result ) ;
+}
+// handleCCID
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -260,6 +289,7 @@ void timeoutHandler() {
   GSMErrorCount++ ;
 
   if( GSMErrorCount > MAX_GSM_ERROR_COUNT ) {
+    sendDataToBLE("GSM: Restarting AT init procedure") ;
     Serial.println(F("Restarting AT init procedure"));
     initAT() ;
   }
@@ -280,6 +310,26 @@ void errorHandler() {
  
 }
 // errorHandler
+
+
+void handleCmeError(char* result) {
+  int errorCode;
+  if (sscanf(result, "%d", &errorCode) == 1) {
+    sendDataToBLE( "GSM: SME error" ) ;
+    sendDataToBLE( result ) ;
+    Serial.print(F("---- Specific Hardware/Network Error Code: "));
+    Serial.println(errorCode);
+    // Example: 10 = SIM not inserted, 11 = SIM PIN required, 30 = No network service
+  }
+}
+
+
+
+// This catches specific SMS-related errors
+void handleCmsError(char* result) {
+  Serial.print(F("---- SMS Error details: "));
+  Serial.println(result);
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

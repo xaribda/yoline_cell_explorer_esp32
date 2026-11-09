@@ -81,8 +81,12 @@ void loopLED() {
 
         // Все в порядке, готовы к записи - редко мигаем белым
         if( once( 3000 ) && !isRecording() ) {
-            //Serial.println("BLINK:: Ready!") ;
-            shortBlink( 70, 100, 100 ) ;
+            if( !isWebServerRunning() ) {
+               //Serial.println("BLINK:: Ready!") ;
+                shortBlink( 100, 100, 100 ) ;
+            } else {
+                shortBlink( 127, 90, 0 ) ;
+            }
         }
 
         if( isRecording() ) {

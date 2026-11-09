@@ -1,6 +1,8 @@
 #include "esp_wifi.h"
 #include "esp_bt.h"
 
+// Сколько файлов будет показано на web странице
+#define MAX_FILES_AT_WEB_PAGE 20 
 AsyncWebServer server(80) ;
 
 String webPassword ;
@@ -166,15 +168,15 @@ void stopWebServer() {
 
 
 String webPageMain() {
-  //Serial.println("----- webPageMain" ) ;
-  return webPageHTMLStart() + webPageHTMLFileList( false ) + webPageHTMLEnd() ; 
+  Serial.println("----- webPageMain" ) ;
+  return webPageHTMLStart() + webPageHTMLFileList() + webPageHTMLEnd() ; 
 }
 // webPageMain
 
 
 String webPageFiles() {
   //Serial.println("----- webPageFiles" ) ;
-  return webPageHTMLStart() + webPageHTMLFileList( false ) + webPageHTMLEnd() ; 
+  return webPageHTMLStart() + webPageHTMLFileList() + webPageHTMLEnd() ; 
 }
 // webPageMain
 
@@ -191,7 +193,9 @@ bool checkAuth( AsyncWebServerRequest *request ) {
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
-String webPageHTMLFileList( bool isCaptive ) {
+String webPageHTMLFileList() {
+  int fileCount = 0 ;
+
   String html = R"rawliteral(
     <table>
       <thead>
@@ -201,6 +205,9 @@ String webPageHTMLFileList( bool isCaptive ) {
       </thead>
       <tbody>
   )rawliteral" ; 
+  
+  // Даем себе 7 секунд, так как сканирование директории это долгий процесс
+  // esp_task_wdt_init( 7, true ) ; 
   
   File root = SD.open("/") ;
   if( !root || !root.isDirectory() ) {
@@ -220,21 +227,24 @@ String webPageHTMLFileList( bool isCaptive ) {
         }
 
         // Убираем ведущий слэш, если есть
-        if (name.startsWith("/")) name = name.substring(1);
+        if( name.startsWith("/")) name = name.substring(1) ;
+
+        //Serial.println( name ) ;
         
-        html += "<tr>";
-        if( isCaptive ) {
-          html += "<td>" + name + "</td>";
-        } else {
+        if( fileCount < MAX_FILES_AT_WEB_PAGE ) {
+          html += "<tr>";
           html += "<td><a href=\"/download?file=/" + name + "\" download=\"" + name + "\">" + name + "</a></td>";
+          html += "<td class='size right'>" + formatBytes(file.size()) + "</td>";
+          html += "<td class='size right'>" + fileYMDHM( file ) + "</td>" ;
+          html += "<td><a href='?delete=" + name + "' onclick=\"return confirm('Delete?')\">X</a></td>" ;
+          html += "</tr>";
         }
-        html += "<td class='size right'>" + formatBytes(file.size()) + "</td>";
-        html += "<td class='size right'>" + fileYMDHM( file ) + "</td>" ;
-        html += "<td><a href='?delete=" + name + "' onclick=\"return confirm('Delete?')\">X</a></td>" ;
-        html += "</tr>";
+
+        fileCount++ ;
       }
       file.close() ;
       file = root.openNextFile() ;
+      esp_task_wdt_reset() ; // На всякий случай говорим собаке, что мы не зависли
     } // while
 
     root.close() ;
@@ -245,9 +255,13 @@ String webPageHTMLFileList( bool isCaptive ) {
   }
 
   html += "</tbody></table>" ;
-  if( isCaptive ) {
-    html += "<div style=\"text-align:center;padding:20px;\"><a href='http://192.168.4.1/bypass'>Enter the system</a></div>" ;
+  if( fileCount > MAX_FILES_AT_WEB_PAGE ) {
+    html += "<div style=\"text-align:center;padding:20px;\">Only " + String( MAX_FILES_AT_WEB_PAGE ) + " files out of " + String( fileCount ) + " shown</div>" ;
   }
+
+  // Все возвращаем собачку в исходное состояние
+  // esp_task_wdt_init( WDT_TIMEOUT, true ) ; 
+
   return html ;
 }
 // webPageHTMLFileList

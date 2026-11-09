@@ -230,6 +230,9 @@ bool isRecording() {
 
 /////////////////////////////////////////////////////////////////////////////////
 String getNewFileName() {
+  // Даем себе 7 секунд, так как сканирование карты может занимать некоторое время
+  esp_task_wdt_init( 5, true ) ; 
+
   maxFileNameID = 0 ;
   root = SD.open( "/" ) ;     
 
@@ -252,10 +255,15 @@ String getNewFileName() {
       }
     }
     entry.close(); // Обязательно закрываем файл после чтения!
+    esp_task_wdt_reset() ; // На всякий случай говорим собаке, что мы не зависли
   } // while
   
   root.close() ; 
   maxFileNameID++ ;
+
+  // Все возвращаем watch dog в исходное состояние
+  esp_task_wdt_init( WDT_TIMEOUT, true ) ; 
+
 
   return generateNextFileName( maxFileNameID ) ;
 

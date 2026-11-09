@@ -186,7 +186,7 @@ void loopGPS3() {
   if(rawPositionValid && filteredPositionValid && GPSFixType >= 2 &&
      (uint32_t)(millis() - latestRawPositionMs) <= GNSS_STALE_TIMEOUT_MS) {
     CDGPSDataString = getGNSSData() ;
-    Serial.println(CDGPSDataString) ;
+    //Serial.println(CDGPSDataString) ;
     sendGNSSToBLE(CDGPSDataString.c_str()) ;
   }
 }

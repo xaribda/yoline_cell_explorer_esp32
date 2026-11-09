@@ -51,7 +51,7 @@ uint64_t chipMacAddress ;
 char chipMacAddressBuffer[13]; // 12 + символ конца строки '\0'
 String formattedChiMacAddress = "" ;
 String globalDeviceName = "" ;
-String globalDeviceVersion = "1.98" ;
+String globalDeviceVersion = "1.1.02" ;
 
 extern "C" {
   void esp_brownout_disable(void);

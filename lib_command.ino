@@ -98,5 +98,16 @@ String executeCommand( String command ) {
     return F("Modem is rebooting") ;
   }
 
+  if( command.startsWith( "call" )) {
+    String phone = command.substring(5) ;
+    if( phone.length() > 9 ) {
+      callPhone( phone ) ;
+      return "Calling: " + phone ;
+    }
+
+    return "Bad phone number" ;
+  }
+
+
   return "command [" + command + "] not found" ;
 }

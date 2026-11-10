@@ -79,8 +79,12 @@ void initAT() {
   gsmAsync.registerHandler( new GsmHandler({ "+CME ERROR:", handleCmeError })) ;
   gsmAsync.registerHandler( new GsmHandler({ "+CMS ERROR:", handleCmsError })) ;
   gsmAsync.registerHandler( new GsmHandler({ "+CCID:", handleCCID })) ;
+  gsmAsync.registerHandler( new GsmHandler({ "+CMT:", receiveSMS })) ;
   gsmAsync.addCommand( "ATE0" ) ; // Выключить эхо команд
-  //gsmAsync.addCommand("AT+CSQ") ; // Уровень сигнала
+  
+  gsmAsync.addCommand( "AT+CMGF=1" ) ;                 // текстовый режим для SMS
+  gsmAsync.addCommand( "AT+CNMI=2,2,0,0,0" ) ;
+
   esp_task_wdt_reset() ;
   delay( 900 ) ; 
 
@@ -155,6 +159,10 @@ void loopAT() {
       requestCellList() ;
     }
   }
+
+  if( once(5000)) {
+    loopSMS() ;
+  }
 }
 // loopAT
 
@@ -169,6 +177,11 @@ void requestCellList() {
 }
 // requestCellList
 
+
+void loopSMS() {
+  //gsmAsync.addCommand("AT+CMGL=\"REC UNREAD\"");
+  //gsmAsync.addCommand("AT+CMGL=\"ALL\"");
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void handleOkResponse(char* result) {
@@ -235,6 +248,47 @@ void handleCPIN(char* result) {
   }
 }
 // handleCPIN
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Получаем SMS сообщения
+// Буферы для хранения полученных данных (можно сделать глобальными)
+char senderNumber[25] = {0};
+char smsText[256] = {0};
+
+void receiveSMS(char* result) {
+    String header = String(result);
+
+    // Извлекаем номер из первой пары кавычек
+    int q1 = header.indexOf('"');
+    int q2 = header.indexOf('"', q1 + 1);
+
+    if (q1 < 0 || q2 < 0) return;
+
+    String phone = header.substring(q1 + 1, q2);
+
+    // Дочитываем остаток заголовка до конца строки
+    Serial0.readStringUntil('\n');
+
+    // Следующая строка — текст SMS
+    String message = Serial0.readStringUntil('\n');
+    message.trim();
+
+    Serial.println(F("SMS received!"));
+    Serial.println("From: " + phone);
+    Serial.println("Text: " + message);
+
+  /////////////////////////////////////////////////////////////////////
+  // Пошла обработка SMS сообщений
+  // У нас запросили положение (можно "Location", например)
+  if( message.equalsIgnoreCase( String( "LOCATION" ))) {
+    Serial.print(F("Send SMS to: ")); Serial.println( phone ) ;
+    sendSMS( phone, getLatLng() ) ;
+  }
+
+  modemIsOk() ;
+}
+// receiveSMS
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -312,6 +366,8 @@ void errorHandler() {
 // errorHandler
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Просто ошибки, на всякий случай - не срабатывало ни разу
 void handleCmeError(char* result) {
   int errorCode;
   if (sscanf(result, "%d", &errorCode) == 1) {
@@ -322,14 +378,16 @@ void handleCmeError(char* result) {
     // Example: 10 = SIM not inserted, 11 = SIM PIN required, 30 = No network service
   }
 }
+// handleCmeError
 
 
-
-// This catches specific SMS-related errors
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Ошибки, свзананные с SMS
 void handleCmsError(char* result) {
   Serial.print(F("---- SMS Error details: "));
   Serial.println(result);
 }
+// handleCmsError
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -352,15 +410,22 @@ String getDeviceVersion() {
 }
 // getDeviceVersion
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 bool isGSM() {
   return isAnyCellList ;
 }
+// isGSM
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 void modemIsOk() {
   GSMModemConnected = true ;
   GSMTimeout = false ;
   GSMErrorCount = 0 ;
 }
+// modemIsOk
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Модем инициализирован и зарегистрирован в сети
@@ -369,15 +434,70 @@ bool isModemRegistered() {
 }
 // isModemRegistered
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 bool isGSMModemConnected() {
   return GSMModemConnected ;
 }
+// isGSMModemConnected
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 bool isGSMTimeout() {
   return GSMTimeout ;
 }
+// isGSMTimeout
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////
 void requestSignalLevel() {
   gsmAsync.addCommand("AT+CSQ") ;
 }
+// requestSignalLevel
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+void sendSMS(String phoneNumber, String text) {
+    // Текстовый режим SMS
+    Serial0.println( "AT+CMGF=1" ) ;
+    delay( 300 ) ;
+    esp_task_wdt_reset() ; // На всякий случай говорим собаке, что мы не зависли
+
+    // Запрос на отправку SMS
+    Serial0.print( "AT+CMGS=\"" ) ; Serial0.print( phoneNumber ) ; Serial0.println( "\"" ) ;
+
+    // Ожидаем приглашение >, если нет, то и нет - отправляем как есть
+    unsigned long timeout = millis() + 1000 ;
+    bool promptReceived = false ;
+
+    while (millis() < timeout) {
+      if (Serial1.available()) {
+        char c = Serial1.read() ;
+
+        Serial.println( c ) ;
+
+        if (c == '>') {
+          promptReceived = true ;
+          break ;
+        }
+      }
+      esp_task_wdt_reset() ; // На всякий случай говорим собаке, что мы не зависли
+    }
+
+    // Отправляем текст
+    Serial0.print( text ) ;
+
+    // Ctrl+Z — завершение и отправка SMS
+    Serial0.write( 26 ) ;
+    //Serial.println("SMS: sending...") ;
+}
+// sendSMS
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+void callPhone( String phone ) {
+  String command = "ATD" + phone + ";" ;
+  Serial.print( "Call command:" ) ; Serial.println( command ) ;
+  gsmAsync.addCommand( command.c_str() ) ; 
+}
+// callPhone

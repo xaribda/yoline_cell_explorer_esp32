@@ -222,6 +222,23 @@ String GNSSDateTimeString() {
   return String( buffer ) ;
 }
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+// "45.12345678,23.12345678" или "No"
+String getLatLng() {
+  char buffer[20] ;
+
+  if( GPSLatitude != 0 ) {
+    snprintf( buffer, sizeof(buffer), "%.8f,%.8f",  GPSLatitude, GPSLongitude ) ;
+    return String(buffer) ;
+  } else {
+    return "No" ;
+  }
+
+}
+// getLatLng
+
+
 // ============================================================================
 // UBX NAV-PVT
 // ============================================================================

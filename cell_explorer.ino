@@ -133,6 +133,9 @@ void setup() {
   initWEB() ;  
   //startWebServer(13) ;
 
+  Serial.println(F("------------------ setup STR engine --------------------------------")) ;
+  initSTK() ;
+
   led2( 65 ) ;
 
   oled.clearDisplay() ;

@@ -13,7 +13,11 @@
 #define MODEM_INIT_STEP_2 2 // AT+CPIN? -> READY
 #define MODEM_INIT_STEP_3 3 // AT+CREG? -> ???
 #define MODEM_INIT_STEP_4 4 // AT+CENG? -> список сот
+#define MODEM_INIT_STEP_PAUSE 5 // приостановка
+
 int initModeSate = MODEM_INIT_STEP_1 ;
+int requestCellModePause = 0 ; // Если 0, то в цикле вызываем gsmAsync.doLoop(), если не ноль, то gsmAsync приостанавливает работу, так как дальше мы сами читаем Serial0
+
 
 bool GSMModemConnected = false ;
 bool GSMTimeout = true ;
@@ -108,6 +112,7 @@ void restartGSMRegistration() {
 
   // Все возвращаем в исходное состояние
   GSMErrorCount = 0 ;
+  requestCellModePause = 0 ;
   GSMRegistrationFailedCount = 0 ; 
   initModeSate == MODEM_INIT_STEP_1 ;
 
@@ -128,6 +133,7 @@ void restartGSMRegistration() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void startInitModemSequence() {
+  requestCellModePause = 0 ;
   initModeSate = MODEM_INIT_STEP_1 ;
 }
 // startInitModemSequence
@@ -135,7 +141,7 @@ void startInitModemSequence() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void loopAT() {
-  gsmAsync.doLoop() ;
+  if( requestCellModePause == 0 ) gsmAsync.doLoop() ;
 
   if( once( 3000 )) {
     if( initModeSate == MODEM_INIT_STEP_1 ) {
@@ -157,6 +163,10 @@ void loopAT() {
     if( initModeSate == MODEM_INIT_STEP_4 ) {
       Serial.println( F("*** Modem #4")) ;
       requestCellList() ;
+    }
+
+    if( initModeSate == MODEM_INIT_STEP_PAUSE ) {
+      Serial.println(F("cell request paused")) ;
     }
   }
 
@@ -309,6 +319,7 @@ void handleCsq(char* result) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void handleCellList(char* result) {
+  //Serial.println("handleCellList") ;
   if( isSendCellListToBLE ) { 
     sendDataToBLE( result ) ;
     Serial.println( result ) ;
@@ -501,3 +512,19 @@ void callPhone( String phone ) {
   gsmAsync.addCommand( command.c_str() ) ; 
 }
 // callPhone
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+void pauseRequestCellList() {
+  requestCellModePause = initModeSate ;
+  initModeSate = MODEM_INIT_STEP_PAUSE ;
+}
+// pauseRequestCellList
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+void startRequestCellList() {
+  initModeSate = requestCellModePause ;
+  requestCellModePause = 0 ;
+}
+// startRequestCellList

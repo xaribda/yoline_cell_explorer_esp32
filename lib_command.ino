@@ -16,75 +16,104 @@ String executeCommand( String command ) {
     return "WEB started, channel: " + channelStr + ", password: " + password ;
   }
 
-  if( command == F("stop web") ) {
+  if( command == "stop web" ) {
     stopWebServer() ;
     return "WEB stopped" ;
   }
 
-  if( command == F("state web") ) {
+  if( command == "state web" ) {
     return isWebServerRunning() ? "WEB is running" : "WEB is stopped" ;
   }
 
-  if( command == F("get serial") ) {
+  if( command == "get serial" ) {
     return getSerialFormatted() ;
   }
 
-  if( command == F("get name")) {
+  if( command == "get name") {
     return getDeviceName() ;
   }
 
-  if( command == F("get version") ) {
+  if( command == "get version" ) {
     return getDeviceVersion() ;
   }
 
-  if( command == F("start record") ) {
+  if( command == "start record" ) {
     if( isRecording() ) return "Already recording" ;
     if( isWebServerRunning() ) stopWebServer() ;
 
     return startRecord() ;
   }
 
-  if( command == F("stop record") ) {
+  if( command == "stop record" ) {
     return stopRecord() ;
   }
 
-  if( command == F("state record") ) {
+  if( command == "state record" ) {
     return isRecording() ? "Recording" : "Not recording" ;
   }
 
 
-  if( command == F("state sd") ) {
+  if( command == "state sd" ) {
     return isRecording() ? "Recording" : "Not recording" ;
   }
 
-  if( command == F("get date") ) {
+  if( command == "get date" ) {
     return GNSSDateTimeString() ;
   }
 
-  if( command == F("get gnss") || command == F("get gps") ) {
+  if( command == "get gnss" || command == F("get gps") ) {
     return getGNSSData() ;
   }
 
-  if( command == F("get battery") ) {
+  if( command == "get battery" ) {
     return getBattery() ;
   }
 
 
-  if( command == F("uptime") ) {
+  if( command == "uptime" ) {
     return "uptime seconds: " + String( (unsigned long) millis() / 1000 ) ;
   }
 
-  if( command == F("get memory") ) {
+  if( command == "get memory" ) {
     return "free: " + String( ESP.getFreeHeap() ) ;
   }
 
-  if( command == F("get signal") ) {
+  if( command == "get signal" ) {
     requestSignalLevel() ;
     return "sent" ;
   }
 
+  if( command == "get profiles" ) {  
+    if( isRecording() ) stopRecord() ;
+    if( isWebServerRunning() ) stopWebServer() ;
+    pauseRequestCellList() ;
+    sendDataToBLE("Retrieving list...") ;
+    String result = getSTKProfiles() ;
+    startRequestCellList() ;
+    return result ;
+  }
 
-  if( command == F("reboot") ) {
+  if( command.startsWith( "set profile" )) {
+    if( isRecording() ) stopRecord() ;
+    if( isWebServerRunning() ) stopWebServer() ;
+    pauseRequestCellList() ;
+
+    sendDataToBLE("Switching, please wait...") ;
+
+    uint8_t profile = 0 ;
+    String profilelStr = command.substring(12) ;
+    if( profilelStr.length() > 0 && isDigit( profilelStr.charAt(0)) ) {
+      profile = profilelStr.toInt() ;
+    } else {
+      profile = 1 ;
+    }
+
+    setSTKProfile( profile ) ;
+    return "Profile [" + String( profile ) + "] activated" ;
+  }
+
+
+  if( command == "reboot" ) {
     if( isRecording() ) stopRecord() ;
     if( isWebServerRunning()) stopWebServer() ;
     sendDataToBLE("Rebooting now...") ;
@@ -93,7 +122,7 @@ String executeCommand( String command ) {
     return "" ;
   }
 
-  if( command == F("reboot modem") ) {
+  if( command == "reboot modem" ) {
     rebootModem() ;
     return F("Modem is rebooting") ;
   }

@@ -16,18 +16,26 @@ bool oldDeviceConnected = false ;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 class MyServerCallbacks : public BLEServerCallbacks {
-  void onConnect(BLEServer* pServer) {
+  void onConnect( BLEServer* pServer, esp_ble_gatts_cb_param_t *param ) {
     deviceConnected = true;
     // oled.setCursor( 40, 0 ) ;
     // oled.print( "BLE" ) ;
+    // Настраиваем параметры соединения для максимальной стабильности:
+    // 1. minInterval: минимальный интервал опроса (в единицах по 1.25 мс). 0x20 = 40 мс
+    // 2. maxInterval: максимальный интервал опроса. 0x40 = 80 мс
+    // 3. latency: сколько пакетов можно пропустить без ответа (0 - отвечать всегда)
+    // 4. timeout: время до разрыва при потере сигнала (в единицах по 10 мс). 
+    // Максимум по стандарту: 3200 (3200 * 10 мс = 32 секунды)
+    // pServer->updateConnParams( param->connect.remote_bda, 0x20, 0x40, 0, 3200);
+
     drawBluethootStatus( 32,0 ) ;
-    Serial.println(F("--- connected --- "));
+    Serial.println( "--- connected --- " ) ;
   }
 
   void onDisconnect(BLEServer* pServer) {
     deviceConnected = false;
     oled.fillRect( 32, 0, 8, 8, BLACK ) ;
-    Serial.println(F("--- disconnected --- "));
+    Serial.println( "--- disconnected --- " ) ;
   }
 } ;
 // MyServerCallbacks

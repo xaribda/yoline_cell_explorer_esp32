@@ -99,6 +99,7 @@ void initAT() {
 
 
 void rebootModem() {
+  gsmAsync.addCommand("AT+STKPCIS=1") ;
   gsmAsync.addCommand("AT+CFUN=1,1") ;
   startInitModemSequence() ;
   GSMModemConnected = false ;
@@ -119,6 +120,7 @@ void restartGSMRegistration() {
   gsmAsync.addCommand("AT+COPS=0") ;
   delay(1000) ;
 
+  gsmAsync.addCommand("AT+STKPCIS=1") ;
   gsmAsync.addCommand("AT+CFUN=0") ;
   delay(1000) ;
   
@@ -134,6 +136,9 @@ void restartGSMRegistration() {
 ////////////////////////////////////////////////////////////////////////////////////////////////
 void startInitModemSequence() {
   requestCellModePause = 0 ;
+  GSMModemConnected = false ;
+  isAnyCellList = false ;
+  GSMTimeout = true ;
   initModeSate = MODEM_INIT_STEP_1 ;
 }
 // startInitModemSequence

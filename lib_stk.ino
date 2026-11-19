@@ -14,6 +14,10 @@ void onEsimProgress() {
     STKLedColor += STKDirection ;
     if( STKLedColor > 128 || STKLedColor < 10 ) STKDirection = -STKDirection ;
     led( STKLedColor, 0, 0 ) ;
+
+    // А то отвалится..
+    loopBLE() ;
+    vTaskDelay(1) ;
 }
 // onEsimProgress
 
@@ -28,7 +32,7 @@ void initSTK() {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 String getSTKProfiles() {
-    String profileString = "" ;
+    String profileString = "List:\n" ;
     EsimBoxProfile profiles[8];
     size_t count = 0;
 
@@ -36,7 +40,7 @@ String getSTKProfiles() {
         Serial.println() ;
         
         for (int i = 0; i < count; i++) {
-            profileString +=  "[" + profiles[i].id +  "] " + profiles[i].name + " " + ( profiles[i].enabled ? "Active" : "Inactive" ) + "\n" ;
+            profileString +=  "[" + profiles[i].id +  "] " + profiles[i].name + " " + ( profiles[i].enabled ? "[A]" : "" ) + "\n" ;
         }
     } else {
         profileString = esim.lastError() ;

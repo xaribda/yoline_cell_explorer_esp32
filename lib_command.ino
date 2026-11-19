@@ -99,6 +99,7 @@ String executeCommand( String command ) {
     pauseRequestCellList() ;
 
     sendDataToBLE("Switching, please wait...") ;
+    vTaskDelay(1) ;
 
     uint8_t profile = 0 ;
     String profilelStr = command.substring(12) ;
